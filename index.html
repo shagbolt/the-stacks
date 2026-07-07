@@ -604,6 +604,7 @@
       <input type="text" id="googleBooksKeyInput" placeholder="AIzaSy..." />
       <div class="lookup-status" id="googleBooksKeyStatus"></div>
       <button class="btn ghost" id="saveGoogleBooksKeyBtn" style="margin-top:8px;">Save Key</button>
+      <button class="btn ghost" id="testGoogleBooksKeyBtn" style="margin-top:8px;">Test Key</button>
     </fieldset>
 
     <fieldset style="margin-top:22px;">
@@ -1078,6 +1079,26 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('saveGoogleBooksKeyBtn').onclick = ()=>{
     saveGoogleBooksKey(document.getElementById('googleBooksKeyInput').value.trim());
     document.getElementById('googleBooksKeyStatus').textContent = 'Saved. Lookups will use this key from now on.';
+  };
+  document.getElementById('testGoogleBooksKeyBtn').onclick = async ()=>{
+    saveGoogleBooksKey(document.getElementById('googleBooksKeyInput').value.trim());
+    const statusEl = document.getElementById('googleBooksKeyStatus');
+    statusEl.textContent = 'Testing…';
+    try{
+      const res = await fetch(googleBooksUrl('flowers'));
+      if(!res.ok){
+        statusEl.textContent = googleBooksErrorMessage(res.status);
+        return;
+      }
+      const data = await res.json();
+      if(data.items && data.items.length){
+        statusEl.textContent = `Working — got ${data.items.length} test results back.`;
+      } else {
+        statusEl.textContent = 'Request succeeded but returned no results — unexpected, try again.';
+      }
+    }catch(e){
+      statusEl.textContent = 'Test failed — check your internet connection.';
+    }
   };
   document.getElementById('backupIntervalInput').onchange = (e)=>{
     setBackupIntervalDays(parseInt(e.target.value));
@@ -1587,6 +1608,12 @@ async function applyStatusDefaults(){
   statusEl.textContent = `Updated ${changed} books.`;
 }
 
+function googleBooksErrorMessage(status){
+  if(status === 429) return 'Google Books daily quota reached — this resets automatically; try again later, or double-check your API key is saved in Sync settings.';
+  if(status === 403) return 'Google Books blocked this request (error 403) — usually means the API key is missing, the "Books API" isn\'t enabled on it, or a website restriction on the key doesn\'t match this site. Check Sync settings.';
+  return `Lookup failed (error ${status}) — try again shortly.`;
+}
+
 /* ---------- ISBN Lookup ---------- */
 async function doLookup(){
   const isbn = document.getElementById('isbnInput').value.trim().replace(/[^0-9Xx]/g,'');
@@ -1594,12 +1621,8 @@ async function doLookup(){
   document.getElementById('lookupStatus').textContent = 'Looking up…';
   try{
     const res = await fetch(googleBooksUrl(`isbn:${isbn}`));
-    if(res.status === 403 || res.status === 429){
-      document.getElementById('lookupStatus').textContent = 'Google Books lookup quota reached — add a free API key in Sync settings to fix this.';
-      return;
-    }
     if(!res.ok){
-      document.getElementById('lookupStatus').textContent = `Lookup failed (error ${res.status}) — try again shortly.`;
+      document.getElementById('lookupStatus').textContent = googleBooksErrorMessage(res.status);
       return;
     }
     const data = await res.json();
@@ -1643,12 +1666,8 @@ async function findCoverByTitleAuthor(){
     let q = `intitle:${title}`;
     if(author) q += `+inauthor:${author.split('(')[0].trim()}`;
     const res = await fetch(googleBooksUrl(encodeURIComponent(q)));
-    if(res.status === 403 || res.status === 429){
-      document.getElementById('lookupStatus').textContent = 'Google Books lookup quota reached — add a free API key in Sync settings to fix this.';
-      return;
-    }
     if(!res.ok){
-      document.getElementById('lookupStatus').textContent = `Cover search failed (error ${res.status}) — try again shortly.`;
+      document.getElementById('lookupStatus').textContent = googleBooksErrorMessage(res.status);
       return;
     }
     const data = await res.json();
@@ -1671,12 +1690,8 @@ async function lookupByTitle(){
     let q = `intitle:${title}`;
     if(authorTyped) q += `+inauthor:${authorTyped.split('(')[0].trim()}`;
     const res = await fetch(googleBooksUrl(encodeURIComponent(q), '&maxResults=5'));
-    if(res.status === 403 || res.status === 429){
-      statusEl.textContent = 'Google Books lookup quota reached — add a free API key in Sync settings to fix this.';
-      return;
-    }
     if(!res.ok){
-      statusEl.textContent = `Lookup failed (error ${res.status}) — try again shortly.`;
+      statusEl.textContent = googleBooksErrorMessage(res.status);
       return;
     }
     const data = await res.json();
