@@ -111,6 +111,14 @@
   .view-toggle button.active{ background:var(--ink); color:var(--paper); }
 
   .shelf-section{ margin:22px 0 30px; }
+
+  .backup-banner{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+    background:var(--paper-dark); border:1px solid var(--brass); border-left:4px solid var(--brass);
+    border-radius:var(--radius); padding:10px 14px; margin:14px 0 0;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-soft);
+  }
+  .backup-banner-actions{ display:flex; gap:8px; flex-shrink:0; }
   .shelf-label{
     font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:2px;
     text-transform:uppercase; color:var(--ink-faint); margin:0 0 8px 4px;
@@ -370,6 +378,16 @@
   </div>
 </header>
 
+<div class="wrap" id="backupBannerWrap" style="display:none;">
+  <div class="backup-banner">
+    <span id="backupBannerText"></span>
+    <div class="backup-banner-actions">
+      <button class="btn ghost small" id="backupBannerNowBtn">Back Up Now</button>
+      <button class="btn ghost small" id="backupBannerDismissBtn">Dismiss</button>
+    </div>
+  </div>
+</div>
+
 <div class="wrap" id="mainArea"></div>
 
 <button class="fab" id="addFab" title="Add a book">+</button>
@@ -573,6 +591,32 @@
         <button class="btn" id="sbConnectBtn">Connect</button>
       </div>
     </div>
+
+    <fieldset style="margin-top:22px;">
+      <legend>Backups</legend>
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:4px 0 10px;">
+        Downloads a dated CSV of your full catalog — a copy independent of the app itself, in case anything ever goes wrong with the device or the cloud.
+      </p>
+      <div class="lookup-status" id="lastBackupStatus">No backup yet on this device.</div>
+      <label style="margin-top:10px;">Remind me to back up every</label>
+      <select class="field" id="backupIntervalInput">
+        <option value="1">Day</option>
+        <option value="3">3 days</option>
+        <option value="7" selected>7 days</option>
+        <option value="14">14 days</option>
+        <option value="0">Never (turn off reminders)</option>
+      </select>
+      <button class="btn ghost" id="backupNowBtn" style="margin-top:10px;">Back Up Now</button>
+    </fieldset>
+
+    <fieldset style="margin-top:22px; border-color:var(--burgundy);">
+      <legend style="color:var(--burgundy);">Danger Zone</legend>
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:4px 0 10px;">
+        Permanently deletes every book from your catalog on this device — and from the cloud too, if connected, so it won't just sync back. Your reading history in the LOG tab is not affected.
+      </p>
+      <button class="btn danger" id="deleteAllBtn">Delete All Books</button>
+      <div class="lookup-status" id="deleteAllStatus"></div>
+    </fieldset>
   </div>
 </div>
 
@@ -762,6 +806,12 @@ async function deleteBookFromCloud(id){
   const { error } = await supabaseClient.from('books').delete().eq('id', id);
   return !error;
 }
+async function deleteAllBooksFromCloud(){
+  if(!supabaseClient) return false;
+  // 'id' is the primary key and is never null, so this filter matches every row.
+  const { error } = await supabaseClient.from('books').delete().not('id', 'is', null);
+  return !error;
+}
 async function pullAllFromCloud(){
   if(!supabaseClient) return null;
   const { data, error } = await supabaseClient.from('books').select('*');
@@ -913,6 +963,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   books = await dbGetAll();
   readLog = await dbLogGetAll();
   render();
+  checkBackupReminder();
 
   if(initSupabaseClient()){
     const cfg = loadSbConfig();
@@ -981,8 +1032,23 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     };
   });
 
-  document.getElementById('settingsBtn').onclick = ()=> document.getElementById('settingsOverlay').classList.add('open');
+  document.getElementById('settingsBtn').onclick = ()=>{
+    document.getElementById('settingsOverlay').classList.add('open');
+    document.getElementById('backupIntervalInput').value = String(getBackupIntervalDays());
+    refreshBackupUI();
+  };
   document.getElementById('closeSettings').onclick = ()=> document.getElementById('settingsOverlay').classList.remove('open');
+  document.getElementById('deleteAllBtn').onclick = deleteAllBooks;
+  document.getElementById('backupNowBtn').onclick = exportCsv;
+  document.getElementById('backupIntervalInput').onchange = (e)=>{
+    setBackupIntervalDays(parseInt(e.target.value));
+    checkBackupReminder();
+  };
+  document.getElementById('backupBannerNowBtn').onclick = exportCsv;
+  document.getElementById('backupBannerDismissBtn').onclick = ()=>{
+    bannerDismissedThisSession = true;
+    document.getElementById('backupBannerWrap').style.display = 'none';
+  };
   document.getElementById('sbConnectBtn').onclick = async ()=>{
     const url = document.getElementById('sbUrlInput').value.trim();
     const key = document.getElementById('sbKeyInput').value.trim();
@@ -1431,6 +1497,32 @@ async function removeBook(){
   }
 }
 
+async function deleteAllBooks(){
+  if(books.length === 0){
+    document.getElementById('deleteAllStatus').textContent = 'Your catalog is already empty.';
+    return;
+  }
+  const count = books.length;
+  const typed = prompt(`This permanently deletes all ${count} books from your catalog${supabaseClient ? ' and the cloud' : ''}. Your reading history is kept.\n\nType DELETE to confirm.`);
+  if(typed !== 'DELETE'){
+    document.getElementById('deleteAllStatus').textContent = typed === null ? 'Cancelled.' : 'Did not match "DELETE" — nothing was deleted.';
+    return;
+  }
+  document.getElementById('deleteAllStatus').textContent = 'Deleting…';
+  await dbClearAndPutAll([]);
+  books = [];
+  render();
+  if(supabaseClient){
+    const ok = await deleteAllBooksFromCloud();
+    document.getElementById('deleteAllStatus').textContent = ok
+      ? `Deleted all ${count} books from this device and the cloud.`
+      : 'Deleted locally, but the cloud delete failed — reconnecting may leave old books coming back. Check your connection and try again.';
+    setSyncIndicator(ok ? 'on' : 'err', ok ? 'Synced · 0 books' : 'Sync error');
+  } else {
+    document.getElementById('deleteAllStatus').textContent = `Deleted all ${count} books from this device.`;
+  }
+}
+
 /* ---------- ISBN Lookup ---------- */
 async function doLookup(){
   const isbn = document.getElementById('isbnInput').value.trim().replace(/[^0-9Xx]/g,'');
@@ -1561,11 +1653,71 @@ function exportCsv(){
   const a = document.createElement('a');
   const stamp = new Date().toISOString().slice(0,10);
   a.href = url;
-  a.download = `the-stacks-export-${stamp}.csv`;
+  a.download = `the-stacks-backup-${stamp}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  recordBackupNow();
+}
+
+/* ---------- Backup reminders ---------- */
+const BACKUP_LAST_KEY = 'stacks_last_backup';
+const BACKUP_INTERVAL_KEY = 'stacks_backup_interval';
+let bannerDismissedThisSession = false;
+
+function getLastBackupISO(){ return localStorage.getItem(BACKUP_LAST_KEY) || ''; }
+function getBackupIntervalDays(){
+  const v = localStorage.getItem(BACKUP_INTERVAL_KEY);
+  return v === null ? 7 : parseInt(v);
+}
+function setBackupIntervalDays(n){ localStorage.setItem(BACKUP_INTERVAL_KEY, String(n)); }
+
+function recordBackupNow(){
+  localStorage.setItem(BACKUP_LAST_KEY, new Date().toISOString());
+  bannerDismissedThisSession = false;
+  refreshBackupUI();
+}
+
+function daysSinceLastBackup(){
+  const last = getLastBackupISO();
+  if(!last) return Infinity;
+  return (Date.now() - new Date(last).getTime()) / 86400000;
+}
+
+function formatLastBackupText(){
+  const last = getLastBackupISO();
+  if(!last) return 'No backup yet on this device.';
+  const days = daysSinceLastBackup();
+  const dateStr = new Date(last).toLocaleDateString(undefined,{month:'short', day:'numeric', year:'numeric'});
+  if(days < 1) return `Last backup: today (${dateStr}).`;
+  if(days < 2) return `Last backup: yesterday (${dateStr}).`;
+  return `Last backup: ${Math.floor(days)} days ago (${dateStr}).`;
+}
+
+function refreshBackupUI(){
+  const statusEl = document.getElementById('lastBackupStatus');
+  if(statusEl) statusEl.textContent = formatLastBackupText();
+  checkBackupReminder();
+}
+
+function checkBackupReminder(){
+  const bannerWrap = document.getElementById('backupBannerWrap');
+  const interval = getBackupIntervalDays();
+  if(interval === 0 || books.length === 0 || bannerDismissedThisSession){
+    bannerWrap.style.display = 'none';
+    return;
+  }
+  const days = daysSinceLastBackup();
+  if(days >= interval){
+    const msg = getLastBackupISO()
+      ? `It's been ${Math.floor(days)} days since your last backup.`
+      : `You haven't backed up your library yet — ${books.length} books are only on this device${supabaseClient ? ' and the cloud' : ''}.`;
+    document.getElementById('backupBannerText').textContent = msg;
+    bannerWrap.style.display = 'block';
+  } else {
+    bannerWrap.style.display = 'none';
+  }
 }
 
 /* ---------- CSV Import ---------- */
