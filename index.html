@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>The Stacks</title>
+<meta name="theme-color" content="#24304B" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="The Stacks" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,900&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --paper:#E7DFC9;
+    --paper-dark:#DCD2B2;
+    --paper-darker:#CFC29B;
+    --ink:#24304B;
+    --ink-soft:#4A5878;
+    --ink-faint:#7C88A3;
+    --brass:#B3843C;
+    --brass-light:#D9AD63;
+    --burgundy:#7C2F2F;
+    --forest:#3E5D46;
+    --slate:#45607A;
+    --dnf:#8A6E6E;
+    --rule: rgba(36,48,75,0.18);
+    --shadow: 0 6px 18px rgba(36,48,75,0.16);
+    --radius: 3px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at top left, rgba(255,255,255,0.35), transparent 60%),
+      var(--paper);
+    color:var(--ink);
+    font-family:'Source Sans 3', -apple-system, sans-serif;
+    min-height:100vh;
+    padding-bottom:70px;
+  }
+  ::selection{ background:var(--brass-light); }
+  .wrap{ max-width:1100px; margin:0 auto; padding:0 18px; }
+
+  header.top{
+    position:sticky; top:0; z-index:20;
+    background:linear-gradient(var(--paper) 85%, transparent);
+    padding-top:env(safe-area-inset-top);
+    border-bottom:1px solid var(--rule);
+  }
+  .top-inner{
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding:18px 18px 10px;
+    max-width:1100px; margin:0 auto; gap:10px;
+  }
+  .wordmark{
+    font-family:'Fraunces', serif; font-weight:900; font-size:26px;
+    letter-spacing:0.5px; color:var(--ink);
+    display:flex; align-items:baseline; gap:8px;
+  }
+  .wordmark .tick{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600;
+    color:var(--brass); letter-spacing:1.5px; text-transform:uppercase;
+    border:1px solid var(--brass); padding:2px 6px; border-radius:2px;
+    transform:translateY(-6px);
+  }
+  .top-actions{ display:flex; align-items:center; gap:10px; }
+  .count{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-faint); white-space:nowrap; }
+  .icon-btn{
+    background:none; border:1px solid var(--rule); color:var(--ink-soft); border-radius:3px;
+    font-family:'IBM Plex Mono', monospace; font-size:11px; padding:6px 9px; cursor:pointer;
+  }
+  .sync-dot{
+    display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; vertical-align:middle;
+    background:var(--ink-faint);
+  }
+  .sync-dot.on{ background:var(--forest); }
+  .sync-dot.syncing{ background:var(--brass); animation:pulse 1s infinite ease-in-out; }
+  .sync-dot.err{ background:var(--burgundy); }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+  .sync-label{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-faint); }
+
+  .controls{
+    display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    padding:0 18px 14px; max-width:1100px; margin:0 auto;
+  }
+  .search{
+    flex:1 1 180px; min-width:140px;
+    font-family:'IBM Plex Mono', monospace; font-size:13px;
+    background:var(--paper-dark); border:1px solid var(--rule); border-radius:var(--radius);
+    padding:9px 10px; color:var(--ink); outline:none;
+  }
+  .search:focus{ border-color:var(--brass); }
+  select.filt{
+    font-family:'IBM Plex Mono', monospace; font-size:12px;
+    background:var(--paper-dark); border:1px solid var(--rule); border-radius:var(--radius);
+    padding:9px 8px; color:var(--ink-soft);
+  }
+  .view-toggle{ display:flex; border:1px solid var(--rule); border-radius:var(--radius); overflow:hidden; }
+  .view-toggle button{
+    background:var(--paper-dark); border:none; padding:9px 12px; font-family:'IBM Plex Mono',monospace;
+    font-size:11px; color:var(--ink-soft); cursor:pointer; letter-spacing:0.5px;
+  }
+  .view-toggle button.active{ background:var(--ink); color:var(--paper); }
+
+  .shelf-section{ margin:22px 0 30px; }
+  .shelf-label{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:2px;
+    text-transform:uppercase; color:var(--ink-faint); margin:0 0 8px 4px;
+  }
+  .shelf{
+    display:flex; align-items:flex-end; gap:3px; flex-wrap:wrap;
+    background:linear-gradient(180deg, transparent 0%, transparent calc(100% - 14px), var(--brass) calc(100% - 14px), var(--brass-light) 100%);
+    padding:14px 10px 14px; border-radius:2px;
+    box-shadow: inset 0 -3px 6px rgba(36,48,75,0.15);
+    min-height:150px;
+  }
+  .spine{
+    position:relative;
+    width:34px; border-radius:2px 2px 0 0; cursor:pointer;
+    display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px;
+    color:var(--paper); transition:transform .15s ease;
+    border:1px solid rgba(36,48,75,0.25);
+  }
+  .spine:hover{ transform:translateY(-4px); }
+  .spine .spine-title{
+    writing-mode:vertical-rl; transform:rotate(180deg);
+    font-family:'Fraunces', serif; font-weight:600; font-size:12.5px;
+    max-height:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    letter-spacing:0.3px;
+  }
+  .spine.status-reading{ background:linear-gradient(180deg, var(--slate), #38506A); }
+  .spine.status-queue{ background:linear-gradient(180deg, #B9AE8C, var(--paper-darker)); color:var(--ink); }
+  .spine.status-read{ background:linear-gradient(180deg, var(--forest), #33502E); }
+  .spine.status-hold{ background:linear-gradient(180deg, var(--brass-light), var(--brass)); color:var(--ink); }
+  .spine.status-dnf{ background:linear-gradient(180deg, var(--dnf), #6E5555); }
+  .spine.fmt-ebook{
+    background:repeating-linear-gradient(135deg, rgba(255,255,255,0.12) 0 6px, transparent 6px 12px), var(--paper-dark);
+    border:1.5px dashed var(--ink-soft); color:var(--ink);
+  }
+  .spine.fmt-ebook .spine-title{ color:var(--ink-soft); }
+  .spine.fmt-audiobook::before{
+    content:""; position:absolute; top:6px; left:50%; transform:translateX(-50%);
+    width:16px; height:8px;
+    background-image:repeating-linear-gradient(90deg, currentColor 0 1.5px, transparent 1.5px 3.5px);
+    opacity:0.85;
+  }
+  .spine .tag{
+    position:absolute; bottom:-9px; left:50%; transform:translateX(-50%) rotate(-4deg);
+    background:var(--brass); color:#fff; font-family:'IBM Plex Mono', monospace;
+    font-size:8.5px; padding:2px 4px; border-radius:1px; white-space:nowrap;
+    box-shadow:0 2px 3px rgba(0,0,0,0.25);
+  }
+
+  .empty{ text-align:center; padding:60px 20px; color:var(--ink-faint); }
+  .empty .big{ font-family:'Fraunces', serif; font-size:22px; color:var(--ink-soft); margin-bottom:6px; }
+
+  .cardlist{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px,1fr)); gap:12px; margin:20px 0; }
+  .book-card{
+    background:var(--paper-dark); border:1px solid var(--rule); border-radius:var(--radius);
+    padding:12px 14px; cursor:pointer; box-shadow:var(--shadow);
+  }
+  .book-card h3{ font-family:'Fraunces',serif; font-size:16px; margin:0 0 2px; color:var(--ink); }
+  .book-card .auth{ font-size:13px; color:var(--ink-soft); margin-bottom:4px; }
+  .book-card .meta{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--ink-faint); margin-bottom:8px; }
+  .stars{ color:var(--brass); font-size:12px; letter-spacing:1px; }
+  .pillrow{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .pill{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.3px;
+    padding:2px 7px; border-radius:10px; border:1px solid var(--rule); color:var(--ink-soft);
+    text-transform:uppercase;
+  }
+
+  .fab{
+    position:fixed; right:20px; bottom:calc(20px + env(safe-area-inset-bottom));
+    width:56px; height:56px; border-radius:50%; background:var(--ink); color:var(--paper);
+    border:none; font-size:28px; box-shadow:0 8px 20px rgba(36,48,75,0.4); cursor:pointer;
+    z-index:30; display:flex; align-items:center; justify-content:center;
+  }
+
+  .overlay{
+    position:fixed; inset:0; background:rgba(36,48,75,0.55); z-index:50;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .overlay.open{ display:flex; }
+  .sheet{
+    background:var(--paper); width:100%; max-width:620px; max-height:92vh; overflow-y:auto;
+    border-radius:14px 14px 0 0; padding:20px 20px calc(24px + env(safe-area-inset-bottom));
+    box-shadow:0 -10px 30px rgba(0,0,0,0.3);
+    border-top:4px solid var(--brass);
+  }
+  @media(min-width:640px){
+    .overlay{ align-items:center; }
+    .sheet{ border-radius:8px; max-height:88vh; }
+  }
+  .sheet h2{ font-family:'Fraunces',serif; font-size:20px; margin:0 0 14px; display:flex; justify-content:space-between; align-items:center;}
+  .close-x{ background:none; border:none; font-size:22px; color:var(--ink-faint); cursor:pointer; }
+  label{ display:block; font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:1px; text-transform:uppercase; color:var(--ink-faint); margin:12px 0 4px; }
+  label .hint{ text-transform:none; letter-spacing:0; color:var(--ink-faint); }
+  input[type=text], input[type=number], input[type=date], input[type=file], textarea, select.field{
+    width:100%; font-family:'IBM Plex Mono', monospace; font-size:14px;
+    background:#fff; border:1px solid var(--rule); border-radius:2px; padding:9px 10px; color:var(--ink);
+  }
+  textarea{ resize:vertical; min-height:50px; font-family:'Source Sans 3',sans-serif; }
+  .row2{ display:flex; gap:10px; }
+  .row2 > div{ flex:1; }
+  .row3{ display:flex; gap:10px; }
+  .row3 > div{ flex:1; }
+  .scan-row{ display:flex; gap:8px; }
+  .scan-row input{ flex:1; }
+  .btn{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.5px;
+    padding:9px 14px; border-radius:2px; border:1px solid var(--ink); background:var(--ink); color:var(--paper);
+    cursor:pointer; white-space:nowrap;
+  }
+  .btn.ghost{ background:transparent; color:var(--ink); border:1px solid var(--rule); }
+  .btn.danger{ background:var(--burgundy); border-color:var(--burgundy); color:#fff; }
+  .btn.small{ padding:5px 9px; font-size:11px; }
+  .actions{ display:flex; justify-content:space-between; gap:10px; margin-top:20px; }
+  .actions .right{ display:flex; gap:8px; }
+  #scanBox{ margin-top:10px; border-radius:4px; overflow:hidden; display:none; }
+  .lookup-status{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-faint); margin-top:6px; min-height:14px; }
+  .status-swatch{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; }
+
+  .star-pick{ display:flex; gap:4px; margin-top:2px; }
+  .star-pick button{
+    background:none; border:none; font-size:24px; cursor:pointer; color:var(--paper-darker); line-height:1;
+    padding:2px;
+  }
+  .star-pick button.on{ color:var(--brass); }
+
+  .collection-toggle{ display:flex; align-items:center; gap:8px; margin-top:14px; }
+  .collection-toggle input{ width:auto; }
+  .collection-toggle label{ margin:0; }
+  #storyRows{ margin-top:8px; display:none; }
+  .story-row{ display:flex; gap:6px; margin-bottom:6px; }
+  .story-row input{ flex:1; }
+  #storySection.show #storyRows{ display:block; }
+
+  fieldset{ border:1px solid var(--rule); border-radius:3px; padding:10px 12px; margin-top:10px; }
+  legend{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:1px; color:var(--ink-faint); padding:0 6px; }
+  .radio-row{ display:flex; gap:16px; margin:4px 0; }
+  .radio-row label{ display:flex; align-items:center; gap:5px; margin:0; text-transform:none; letter-spacing:0; font-family:'Source Sans 3',sans-serif; font-size:13px; color:var(--ink); }
+  .radio-row input{ width:auto; }
+
+  /* Import modal */
+  .import-step{ display:none; }
+  .import-step.active{ display:block; }
+  table.maptable{ width:100%; border-collapse:collapse; margin-top:8px; font-size:12px; }
+  table.maptable th, table.maptable td{ text-align:left; padding:5px 6px; border-bottom:1px solid var(--rule); }
+  table.maptable select{ width:100%; font-family:'IBM Plex Mono',monospace; font-size:12px; padding:5px; border:1px solid var(--rule); border-radius:2px; background:#fff; }
+  .droparea{
+    border:2px dashed var(--rule); border-radius:6px; padding:26px 14px; text-align:center;
+    color:var(--ink-faint); font-family:'IBM Plex Mono',monospace; font-size:12px; margin-top:10px;
+  }
+  .previewbox{ background:var(--paper-dark); border-radius:4px; padding:10px; margin-top:10px; font-family:'IBM Plex Mono',monospace; font-size:11px; max-height:160px; overflow:auto; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="wordmark">THE STACKS <span class="tick">Vol. I</span></div>
+    <div class="top-actions">
+      <span class="sync-label"><span class="sync-dot" id="syncDot"></span><span id="syncLabelText">Local only</span></span>
+      <button class="icon-btn" id="settingsBtn">Sync</button>
+      <button class="icon-btn" id="importBtn">Import CSV</button>
+      <button class="icon-btn" id="exportBtn">Export CSV</button>
+      <div class="count" id="countLabel">0 volumes</div>
+    </div>
+  </div>
+  <div class="controls">
+    <input class="search" id="searchInput" type="text" placeholder="search title, author, isbn, publisher…" />
+    <select class="filt" id="statusFilter">
+      <option value="">all status</option>
+      <option value="read">read</option>
+      <option value="reading">reading</option>
+      <option value="queue">to read</option>
+      <option value="hold">on hold</option>
+      <option value="dnf">did not finish</option>
+    </select>
+    <select class="filt" id="formatFilter">
+      <option value="">all formats</option>
+      <option value="hardcover">hardcover</option>
+      <option value="paperback">paperback</option>
+      <option value="trade_paperback">trade paperback</option>
+      <option value="epub">ebook · epub</option>
+      <option value="mobi">ebook · mobi</option>
+      <option value="pdf">ebook · pdf</option>
+      <option value="audiobook">audiobook</option>
+    </select>
+    <select class="filt" id="sourceFilter">
+      <option value="">all sources</option>
+      <option value="Owned">owned</option>
+      <option value="Library">library</option>
+      <option value="Hoopla">hoopla</option>
+      <option value="Libby">libby</option>
+      <option value="Other">other loan</option>
+    </select>
+    <div class="view-toggle">
+      <button id="btnShelf" class="active">SHELF</button>
+      <button id="btnList">LIST</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap" id="mainArea"></div>
+
+<button class="fab" id="addFab" title="Add a book">+</button>
+
+<!-- Add/Edit Sheet -->
+<div class="overlay" id="editOverlay">
+  <div class="sheet">
+    <h2><span id="sheetTitle">Add to the Stacks</span><button class="close-x" id="closeSheet">×</button></h2>
+
+    <label>Scan barcode or enter ISBN</label>
+    <div class="scan-row">
+      <input type="text" id="isbnInput" placeholder="978…" inputmode="numeric" />
+      <button class="btn ghost" id="scanBtn">Scan</button>
+      <button class="btn ghost" id="lookupBtn">Look up</button>
+    </div>
+    <div id="scanBox"></div>
+    <div class="lookup-status" id="lookupStatus"></div>
+
+    <label>Title</label>
+    <input type="text" id="titleInput" placeholder="Title" />
+
+    <label>Author</label>
+    <input type="text" id="authorInput" placeholder="Author" />
+
+    <div class="row3">
+      <div><label>Publisher</label><input type="text" id="publisherInput" placeholder="Publisher" /></div>
+      <div><label>Year</label><input type="text" id="yearInput" placeholder="1979" inputmode="numeric" /></div>
+      <div><label>Pages</label><input type="number" id="pagesInput" placeholder="320" min="0" /></div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Format</label>
+        <select class="field" id="formatInput">
+          <option value="hardcover">Hardcover</option>
+          <option value="paperback">Paperback</option>
+          <option value="trade_paperback">Trade Paperback</option>
+          <option value="epub">Electronic – EPUB</option>
+          <option value="mobi">Electronic – MOBI</option>
+          <option value="pdf">Electronic – PDF</option>
+          <option value="audiobook">Audiobook</option>
+        </select>
+      </div>
+      <div>
+        <label>Status</label>
+        <select class="field" id="statusInput">
+          <option value="queue">To Read</option>
+          <option value="reading">Reading</option>
+          <option value="read">Read</option>
+          <option value="hold">On Hold</option>
+          <option value="dnf">Did Not Finish</option>
+        </select>
+      </div>
+    </div>
+
+    <fieldset>
+      <legend>Ownership</legend>
+      <div class="radio-row">
+        <label><input type="radio" name="ownership" value="owned" checked /> Owned by me</label>
+        <label><input type="radio" name="ownership" value="loan" /> On loan</label>
+      </div>
+      <div id="loanSourceRow" style="display:none;">
+        <label style="margin-top:6px;">Loan source</label>
+        <select class="field" id="loanSourceInput">
+          <option value="Library">Library</option>
+          <option value="Hoopla">Hoopla</option>
+          <option value="Libby">Libby</option>
+          <option value="Other">Other</option>
+        </select>
+        <label>Due date <span class="hint">(optional)</span></label>
+        <input type="date" id="dueInput" />
+      </div>
+    </fieldset>
+
+    <label>My rating</label>
+    <div class="star-pick" id="starPick">
+      <button type="button" data-val="1">★</button>
+      <button type="button" data-val="2">★</button>
+      <button type="button" data-val="3">★</button>
+      <button type="button" data-val="4">★</button>
+      <button type="button" data-val="5">★</button>
+    </div>
+    <input type="hidden" id="ratingInput" value="0" />
+
+    <div class="collection-toggle">
+      <input type="checkbox" id="isCollectionInput" />
+      <label>This is a collection of stories</label>
+    </div>
+    <div id="storySection">
+      <div id="storyRows"></div>
+      <button type="button" class="btn ghost small" id="addStoryBtn" style="display:none; margin-top:2px;">+ Add story</button>
+    </div>
+
+    <label>Synopsis</label>
+    <textarea id="synopsisInput" placeholder="A short synopsis…"></textarea>
+
+    <label>Notes</label>
+    <textarea id="notesInput" placeholder="Edition, condition, why you picked it up…"></textarea>
+
+    <div class="actions">
+      <button class="btn danger" id="deleteBtn" style="display:none;">Remove</button>
+      <div class="right">
+        <button class="btn ghost" id="cancelBtn">Cancel</button>
+        <button class="btn" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import Sheet -->
+<div class="overlay" id="importOverlay">
+  <div class="sheet">
+    <h2><span>Import from CSV</span><button class="close-x" id="closeImport">×</button></h2>
+
+    <div class="import-step active" id="importStep1">
+      <p style="font-size:13px; color:var(--ink-soft);">Works with Goodreads, LibraryThing, or any spreadsheet export. Choose a file, then match your columns.</p>
+      <input type="file" id="csvFile" accept=".csv,text/csv" />
+      <div class="droparea">or drop a .csv file anywhere on this sheet</div>
+    </div>
+
+    <div class="import-step" id="importStep2">
+      <p style="font-size:13px; color:var(--ink-soft);"><span id="rowCount"></span> rows found. Match your columns below — leave "— none —" to skip a field.</p>
+      <table class="maptable" id="mapTable"></table>
+      <div class="previewbox" id="previewBox"></div>
+      <div class="actions">
+        <button class="btn ghost" id="backToStep1">Back</button>
+        <button class="btn" id="runImportBtn">Import rows</button>
+      </div>
+    </div>
+
+    <div class="import-step" id="importStep3">
+      <p style="font-family:'Fraunces',serif; font-size:18px;">Imported <span id="importedCount"></span> books into the stacks.</p>
+      <div class="actions"><div></div><button class="btn" id="doneImportBtn">Done</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Sync Settings Sheet -->
+<div class="overlay" id="settingsOverlay">
+  <div class="sheet">
+    <h2><span>Cloud Sync</span><button class="close-x" id="closeSettings">×</button></h2>
+    <p style="font-size:13px; color:var(--ink-soft);">Connect a free Supabase project to keep your catalog in sync across your Mac, iPad, and iPhone. Your books stay on this device either way — connecting just adds a shared copy in the cloud.</p>
+
+    <label>Supabase Project URL</label>
+    <input type="text" id="sbUrlInput" placeholder="https://xxxxxxxx.supabase.co" />
+
+    <label>Supabase anon public key</label>
+    <input type="text" id="sbKeyInput" placeholder="eyJhbGciOi..." />
+
+    <div class="lookup-status" id="sbStatus">Not connected — this device is local only.</div>
+
+    <div class="actions">
+      <button class="btn danger" id="sbDisconnectBtn" style="display:none;">Disconnect</button>
+      <div class="right">
+        <button class="btn ghost" id="sbPushAllBtn" style="display:none;">Push all local books to cloud</button>
+        <button class="btn" id="sbConnectBtn">Connect</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- IndexedDB layer ---------- */
+const DB_NAME = 'thestacks';
+const STORE = 'books';
+let db;
+
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, 2);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains(STORE)){
+        const s = d.createObjectStore(STORE, {keyPath:'id'});
+        s.createIndex('status','status');
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = e => reject(e);
+  });
+}
+function dbGetAll(){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(STORE,'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = reject;
+  });
+}
+function dbPut(book){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(STORE,'readwrite');
+    tx.objectStore(STORE).put(book);
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
+}
+function dbDelete(id){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(STORE,'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
+}
+function dbPutMany(list){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(STORE,'readwrite');
+    const s = tx.objectStore(STORE);
+    list.forEach(b=> s.put(b));
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
+}
+function dbClearAndPutAll(list){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(STORE,'readwrite');
+    const s = tx.objectStore(STORE);
+    s.clear();
+    list.forEach(b=> s.put(b));
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
+}
+
+/* ---------- State ---------- */
+let books = [];
+let currentView = 'shelf';
+let editingId = null;
+let html5QrCode = null;
+let csvRows = [];
+let csvHeaders = [];
+
+const STATUS_LABEL = {read:'Read', reading:'Reading', queue:'To Read', hold:'On Hold', dnf:'Did Not Finish'};
+const STATUS_COLOR = {read:'#3E5D46', reading:'#45607A', queue:'#B9AE8C', hold:'#D9AD63', dnf:'#8A6E6E'};
+const FORMAT_LABEL = {hardcover:'Hardcover', paperback:'Paperback', trade_paperback:'Trade Paperback', epub:'Ebook · EPUB', mobi:'Ebook · MOBI', pdf:'Ebook · PDF', audiobook:'Audiobook'};
+const EBOOK_FORMATS = ['epub','mobi','pdf'];
+
+/* ---------- Supabase sync ---------- */
+const SB_CONFIG_KEY = 'stacks_supabase_config';
+let supabaseClient = null;
+
+function loadSbConfig(){
+  try{ return JSON.parse(localStorage.getItem(SB_CONFIG_KEY) || 'null'); }catch(e){ return null; }
+}
+function saveSbConfig(cfg){ localStorage.setItem(SB_CONFIG_KEY, JSON.stringify(cfg)); }
+function clearSbConfig(){ localStorage.removeItem(SB_CONFIG_KEY); }
+
+function initSupabaseClient(){
+  const cfg = loadSbConfig();
+  if(cfg && cfg.url && cfg.key){
+    try{ supabaseClient = supabase.createClient(cfg.url, cfg.key); return true; }
+    catch(e){ supabaseClient = null; return false; }
+  }
+  supabaseClient = null;
+  return false;
+}
+
+function setSyncIndicator(state, label){
+  const dot = document.getElementById('syncDot');
+  const text = document.getElementById('syncLabelText');
+  dot.className = 'sync-dot' + (state ? ' ' + state : '');
+  text.textContent = label;
+}
+
+function toDbRow(b){
+  return {
+    id: b.id, isbn: b.isbn || null, title: b.title, author: b.author || null,
+    publisher: b.publisher || null, year: b.year || null, pages: b.pages || null,
+    format: b.format, status: b.status, ownership: b.ownership,
+    loan_source: b.loanSource || null, due_date: b.dueDate || null,
+    rating: b.rating || 0, is_collection: !!b.isCollection, stories: b.stories || [],
+    synopsis: b.synopsis || null, notes: b.notes || null,
+    date_added: b.dateAdded || new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+}
+function fromDbRow(r){
+  return {
+    id: r.id, isbn: r.isbn || '', title: r.title, author: r.author || '',
+    publisher: r.publisher || '', year: r.year || '', pages: r.pages || null,
+    format: r.format, status: r.status, ownership: r.ownership,
+    loanSource: r.loan_source || '', dueDate: r.due_date || '',
+    rating: r.rating || 0, isCollection: !!r.is_collection, stories: r.stories || [],
+    synopsis: r.synopsis || '', notes: r.notes || '',
+    dateAdded: r.date_added, _dirty: false
+  };
+}
+
+async function pushBookToCloud(book){
+  if(!supabaseClient) return false;
+  const { error } = await supabaseClient.from('books').upsert(toDbRow(book));
+  return !error;
+}
+async function deleteBookFromCloud(id){
+  if(!supabaseClient) return false;
+  const { error } = await supabaseClient.from('books').delete().eq('id', id);
+  return !error;
+}
+async function pullAllFromCloud(){
+  if(!supabaseClient) return null;
+  const { data, error } = await supabaseClient.from('books').select('*');
+  if(error) return null;
+  return data.map(fromDbRow);
+}
+
+async function fullSync(){
+  if(!supabaseClient) return;
+  setSyncIndicator('syncing', 'Syncing…');
+  const cloudBooks = await pullAllFromCloud();
+  if(cloudBooks === null){
+    setSyncIndicator('err', 'Sync error — check URL/key');
+    return;
+  }
+  const localDirty = books.filter(b => b._dirty);
+  const merged = {};
+  cloudBooks.forEach(b => merged[b.id] = b);
+  localDirty.forEach(b => merged[b.id] = b);
+  books = Object.values(merged);
+  await dbClearAndPutAll(books);
+
+  for(const b of localDirty){
+    const ok = await pushBookToCloud(b);
+    if(ok){ b._dirty = false; await dbPut(b); }
+  }
+  setSyncIndicator('on', `Synced · ${books.length} books`);
+  render();
+}
+
+/* ---------- Init ---------- */
+window.addEventListener('DOMContentLoaded', async ()=>{
+  await openDB();
+  books = await dbGetAll();
+  render();
+
+  if(initSupabaseClient()){
+    const cfg = loadSbConfig();
+    document.getElementById('sbUrlInput').value = cfg.url;
+    document.getElementById('sbKeyInput').value = cfg.key;
+    document.getElementById('sbDisconnectBtn').style.display = 'inline-block';
+    document.getElementById('sbPushAllBtn').style.display = 'inline-block';
+    document.getElementById('sbConnectBtn').textContent = 'Reconnect';
+    setSyncIndicator('syncing', 'Syncing…');
+    fullSync();
+  }
+
+  document.getElementById('addFab').onclick = ()=> openSheet(null);
+  document.getElementById('closeSheet').onclick = closeSheet;
+  document.getElementById('cancelBtn').onclick = closeSheet;
+  document.getElementById('saveBtn').onclick = saveBook;
+  document.getElementById('deleteBtn').onclick = removeBook;
+  document.getElementById('lookupBtn').onclick = doLookup;
+  document.getElementById('scanBtn').onclick = toggleScanner;
+  document.getElementById('searchInput').oninput = render;
+  document.getElementById('statusFilter').onchange = render;
+  document.getElementById('formatFilter').onchange = render;
+  document.getElementById('sourceFilter').onchange = render;
+  document.getElementById('btnShelf').onclick = ()=> setView('shelf');
+  document.getElementById('btnList').onclick = ()=> setView('list');
+
+  document.querySelectorAll('input[name=ownership]').forEach(r=>{
+    r.onchange = ()=>{ document.getElementById('loanSourceRow').style.display = (r.value==='loan' && r.checked) ? 'block' : (document.querySelector('input[name=ownership]:checked').value==='loan' ? 'block':'none'); };
+  });
+  document.getElementById('isCollectionInput').onchange = (e)=>{
+    document.getElementById('storySection').classList.toggle('show', e.target.checked);
+    document.getElementById('addStoryBtn').style.display = e.target.checked ? 'inline-block' : 'none';
+    if(e.target.checked && document.getElementById('storyRows').children.length===0) addStoryRow();
+  };
+  document.getElementById('addStoryBtn').onclick = ()=> addStoryRow();
+  document.querySelectorAll('#starPick button').forEach(btn=>{
+    btn.onclick = ()=>{
+      const cur = parseInt(document.getElementById('ratingInput').value||'0');
+      const val = parseInt(btn.dataset.val);
+      const next = (cur===val) ? 0 : val;
+      document.getElementById('ratingInput').value = next;
+      paintStars(next);
+    };
+  });
+
+  document.getElementById('settingsBtn').onclick = ()=> document.getElementById('settingsOverlay').classList.add('open');
+  document.getElementById('closeSettings').onclick = ()=> document.getElementById('settingsOverlay').classList.remove('open');
+  document.getElementById('sbConnectBtn').onclick = async ()=>{
+    const url = document.getElementById('sbUrlInput').value.trim();
+    const key = document.getElementById('sbKeyInput').value.trim();
+    if(!url || !key){ document.getElementById('sbStatus').textContent = 'Enter both the project URL and anon key.'; return; }
+    saveSbConfig({url, key});
+    initSupabaseClient();
+    document.getElementById('sbStatus').textContent = 'Connecting…';
+    const cloudBooks = await pullAllFromCloud();
+    if(cloudBooks === null){
+      document.getElementById('sbStatus').textContent = 'Could not connect — check the URL, key, and that the books table exists.';
+      setSyncIndicator('err', 'Sync error');
+      return;
+    }
+    document.getElementById('sbDisconnectBtn').style.display = 'inline-block';
+    document.getElementById('sbPushAllBtn').style.display = 'inline-block';
+    document.getElementById('sbConnectBtn').textContent = 'Reconnect';
+    document.getElementById('sbStatus').textContent = `Connected. ${cloudBooks.length} books found in the cloud.`;
+    await fullSync();
+  };
+  document.getElementById('sbPushAllBtn').onclick = async ()=>{
+    if(!supabaseClient) return;
+    document.getElementById('sbStatus').textContent = 'Pushing all local books…';
+    setSyncIndicator('syncing', 'Syncing…');
+    let count = 0;
+    for(const b of books){
+      const ok = await pushBookToCloud(b);
+      if(ok){ b._dirty = false; await dbPut(b); count++; }
+    }
+    document.getElementById('sbStatus').textContent = `Pushed ${count} of ${books.length} books to the cloud.`;
+    setSyncIndicator('on', `Synced · ${books.length} books`);
+  };
+  document.getElementById('sbDisconnectBtn').onclick = ()=>{
+    if(!confirm('Disconnect from cloud sync? Your books stay on this device, but devices will stop sharing updates.')) return;
+    clearSbConfig();
+    supabaseClient = null;
+    document.getElementById('sbDisconnectBtn').style.display = 'none';
+    document.getElementById('sbPushAllBtn').style.display = 'none';
+    document.getElementById('sbConnectBtn').textContent = 'Connect';
+    document.getElementById('sbStatus').textContent = 'Not connected — this device is local only.';
+    setSyncIndicator('', 'Local only');
+  };
+
+  document.getElementById('importBtn').onclick = openImport;
+  document.getElementById('exportBtn').onclick = exportCsv;
+  document.getElementById('closeImport').onclick = closeImport;
+  document.getElementById('csvFile').onchange = (e)=> e.target.files[0] && handleCsvFile(e.target.files[0]);
+  document.getElementById('backToStep1').onclick = ()=> showImportStep(1);
+  document.getElementById('runImportBtn').onclick = runImport;
+  document.getElementById('doneImportBtn').onclick = closeImport;
+
+  const importSheet = document.querySelector('#importOverlay .sheet');
+  importSheet.addEventListener('dragover', e=>{ e.preventDefault(); });
+  importSheet.addEventListener('drop', e=>{
+    e.preventDefault();
+    if(e.dataTransfer.files[0]) handleCsvFile(e.dataTransfer.files[0]);
+  });
+
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+});
+
+function setView(v){
+  currentView = v;
+  document.getElementById('btnShelf').classList.toggle('active', v==='shelf');
+  document.getElementById('btnList').classList.toggle('active', v==='list');
+  render();
+}
+
+function sourceLabel(b){
+  if(b.ownership === 'loan') return b.loanSource || 'Other';
+  return 'Owned';
+}
+
+/* ---------- Rendering ---------- */
+function filteredBooks(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const sf = document.getElementById('statusFilter').value;
+  const ff = document.getElementById('formatFilter').value;
+  const rf = document.getElementById('sourceFilter').value;
+  return books.filter(b=>{
+    if(sf && b.status !== sf) return false;
+    if(ff && b.format !== ff) return false;
+    if(rf && sourceLabel(b) !== rf) return false;
+    if(q){
+      const hay = `${b.title} ${b.author} ${b.isbn||''} ${b.publisher||''}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function render(){
+  const list = filteredBooks();
+  document.getElementById('countLabel').textContent = `${books.length} volume${books.length===1?'':'s'}`;
+  const area = document.getElementById('mainArea');
+  area.innerHTML = '';
+
+  if(books.length === 0){
+    area.innerHTML = `<div class="empty"><div class="big">Empty shelf</div>Scan, add, or import your first books to begin the stacks.</div>`;
+    return;
+  }
+  if(list.length === 0){
+    area.innerHTML = `<div class="empty"><div class="big">No matches</div>Try a different search or filter.</div>`;
+    return;
+  }
+
+  if(currentView === 'shelf'){
+    const section = document.createElement('div');
+    section.className = 'shelf-section';
+    section.innerHTML = `<div class="shelf-label">${list.length} on this shelf</div>`;
+    const shelf = document.createElement('div');
+    shelf.className = 'shelf';
+    list.forEach(b=>{
+      const s = document.createElement('div');
+      const fmtClass = EBOOK_FORMATS.includes(b.format) ? 'fmt-ebook' : (b.format==='audiobook' ? 'fmt-audiobook' : '');
+      s.className = `spine status-${b.status} ${fmtClass}`;
+      const heightSeed = 92 + (hashStr(b.title) % 40);
+      const widthSeed = 30 + (hashStr(b.author||'') % 14);
+      s.style.height = heightSeed + 'px';
+      s.style.width = widthSeed + 'px';
+      s.innerHTML = `<span class="spine-title">${escapeHtml(b.title)}</span>`;
+      if(b.ownership==='loan' && b.dueDate){
+        s.innerHTML += `<span class="tag">due ${formatDateShort(b.dueDate)}</span>`;
+      }
+      s.onclick = ()=> openSheet(b.id);
+      shelf.appendChild(s);
+    });
+    section.appendChild(shelf);
+    area.appendChild(section);
+  } else {
+    const grid = document.createElement('div');
+    grid.className = 'cardlist';
+    list.forEach(b=>{
+      const c = document.createElement('div');
+      c.className = 'book-card';
+      c.onclick = ()=> openSheet(b.id);
+      const metaBits = [b.publisher, b.year, b.pages ? `${b.pages}p` : ''].filter(Boolean).join(' · ');
+      c.innerHTML = `
+        <h3>${escapeHtml(b.title)}</h3>
+        <div class="auth">${escapeHtml(b.author||'Unknown author')}</div>
+        ${metaBits ? `<div class="meta">${escapeHtml(metaBits)}</div>` : ''}
+        ${b.rating ? `<div class="stars">${'★'.repeat(b.rating)}${'☆'.repeat(5-b.rating)}</div>` : ''}
+        <div class="pillrow">
+          <span class="pill"><span class="status-swatch" style="background:${STATUS_COLOR[b.status]}"></span>${STATUS_LABEL[b.status]}</span>
+          <span class="pill">${FORMAT_LABEL[b.format]||b.format}</span>
+          <span class="pill">${escapeHtml(sourceLabel(b))}</span>
+          ${b.isCollection ? `<span class="pill">${(b.stories||[]).length} stories</span>` : ''}
+        </div>`;
+      grid.appendChild(c);
+    });
+    area.appendChild(grid);
+  }
+}
+
+function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) >>> 0; } return h; }
+function escapeHtml(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function formatDateShort(iso){ if(!iso) return ''; const d = new Date(iso+'T00:00:00'); return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
+function paintStars(val){ document.querySelectorAll('#starPick button').forEach(b=> b.classList.toggle('on', parseInt(b.dataset.val) <= val)); }
+
+/* ---------- Story rows (collections) ---------- */
+function addStoryRow(title='', author=''){
+  const row = document.createElement('div');
+  row.className = 'story-row';
+  row.innerHTML = `
+    <input type="text" class="storyTitle" placeholder="Story title" value="${escapeHtml(title)}" />
+    <input type="text" class="storyAuthor" placeholder="Author" value="${escapeHtml(author)}" />
+    <button type="button" class="btn ghost small removeStory">×</button>`;
+  row.querySelector('.removeStory').onclick = ()=> row.remove();
+  document.getElementById('storyRows').appendChild(row);
+}
+function collectStories(){
+  return [...document.querySelectorAll('#storyRows .story-row')].map(r=>({
+    title: r.querySelector('.storyTitle').value.trim(),
+    author: r.querySelector('.storyAuthor').value.trim()
+  })).filter(s=>s.title);
+}
+
+/* ---------- Sheet (Add/Edit) ---------- */
+function openSheet(id){
+  editingId = id;
+  const b = id ? books.find(x=>x.id===id) : null;
+  document.getElementById('sheetTitle').textContent = b ? 'Edit Entry' : 'Add to the Stacks';
+  document.getElementById('isbnInput').value = b?.isbn || '';
+  document.getElementById('titleInput').value = b?.title || '';
+  document.getElementById('authorInput').value = b?.author || '';
+  document.getElementById('publisherInput').value = b?.publisher || '';
+  document.getElementById('yearInput').value = b?.year || '';
+  document.getElementById('pagesInput').value = b?.pages || '';
+  document.getElementById('formatInput').value = b?.format || 'paperback';
+  document.getElementById('statusInput').value = b?.status || 'queue';
+  document.getElementById('synopsisInput').value = b?.synopsis || '';
+  document.getElementById('notesInput').value = b?.notes || '';
+  document.getElementById('dueInput').value = b?.dueDate || '';
+
+  const ownership = b?.ownership || 'owned';
+  document.querySelectorAll('input[name=ownership]').forEach(r=> r.checked = (r.value===ownership));
+  document.getElementById('loanSourceRow').style.display = ownership==='loan' ? 'block' : 'none';
+  document.getElementById('loanSourceInput').value = b?.loanSource || 'Library';
+
+  const rating = b?.rating || 0;
+  document.getElementById('ratingInput').value = rating;
+  paintStars(rating);
+
+  document.getElementById('isCollectionInput').checked = !!b?.isCollection;
+  document.getElementById('storySection').classList.toggle('show', !!b?.isCollection);
+  document.getElementById('addStoryBtn').style.display = b?.isCollection ? 'inline-block' : 'none';
+  document.getElementById('storyRows').innerHTML = '';
+  if(b?.isCollection && b.stories && b.stories.length){
+    b.stories.forEach(s=> addStoryRow(s.title, s.author));
+  }
+
+  document.getElementById('deleteBtn').style.display = b ? 'inline-block' : 'none';
+  document.getElementById('lookupStatus').textContent = '';
+  stopScanner();
+  document.getElementById('editOverlay').classList.add('open');
+}
+function closeSheet(){
+  document.getElementById('editOverlay').classList.remove('open');
+  stopScanner();
+}
+
+async function saveBook(){
+  const title = document.getElementById('titleInput').value.trim();
+  if(!title){ document.getElementById('titleInput').focus(); return; }
+  const ownership = document.querySelector('input[name=ownership]:checked').value;
+  const isCollection = document.getElementById('isCollectionInput').checked;
+  const book = {
+    id: editingId || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+    isbn: document.getElementById('isbnInput').value.trim(),
+    title,
+    author: document.getElementById('authorInput').value.trim(),
+    publisher: document.getElementById('publisherInput').value.trim(),
+    year: document.getElementById('yearInput').value.trim(),
+    pages: document.getElementById('pagesInput').value ? parseInt(document.getElementById('pagesInput').value) : null,
+    format: document.getElementById('formatInput').value,
+    status: document.getElementById('statusInput').value,
+    ownership,
+    loanSource: ownership==='loan' ? document.getElementById('loanSourceInput').value : '',
+    dueDate: ownership==='loan' ? document.getElementById('dueInput').value : '',
+    rating: parseInt(document.getElementById('ratingInput').value || '0'),
+    isCollection,
+    stories: isCollection ? collectStories() : [],
+    synopsis: document.getElementById('synopsisInput').value.trim(),
+    notes: document.getElementById('notesInput').value.trim(),
+    dateAdded: (books.find(b=>b.id===editingId)?.dateAdded) || new Date().toISOString(),
+    _dirty: true
+  };
+  await dbPut(book);
+  const idx = books.findIndex(b=>b.id===book.id);
+  if(idx>=0) books[idx] = book; else books.push(book);
+  closeSheet();
+  render();
+
+  if(supabaseClient){
+    setSyncIndicator('syncing', 'Syncing…');
+    const ok = await pushBookToCloud(book);
+    if(ok){ book._dirty = false; await dbPut(book); setSyncIndicator('on', `Synced · ${books.length} books`); }
+    else{ setSyncIndicator('err', 'Saved locally — will retry sync'); }
+  }
+}
+
+async function removeBook(){
+  if(!editingId) return;
+  if(!confirm('Remove this book from the stacks?')) return;
+  const id = editingId;
+  await dbDelete(id);
+  books = books.filter(b=>b.id!==id);
+  closeSheet();
+  render();
+  if(supabaseClient){
+    await deleteBookFromCloud(id);
+  }
+}
+
+/* ---------- ISBN Lookup ---------- */
+async function doLookup(){
+  const isbn = document.getElementById('isbnInput').value.trim().replace(/[^0-9Xx]/g,'');
+  if(!isbn){ document.getElementById('lookupStatus').textContent = 'Enter an ISBN first.'; return; }
+  document.getElementById('lookupStatus').textContent = 'Looking up…';
+  try{
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    const data = await res.json();
+    const item = data.items && data.items[0];
+    if(!item){ document.getElementById('lookupStatus').textContent = 'No match found — enter details manually.'; return; }
+    const v = item.volumeInfo;
+    if(v.title) document.getElementById('titleInput').value = v.title;
+    if(v.authors) document.getElementById('authorInput').value = v.authors.join(', ');
+    if(v.publisher) document.getElementById('publisherInput').value = v.publisher;
+    if(v.publishedDate) document.getElementById('yearInput').value = v.publishedDate.slice(0,4);
+    if(v.pageCount) document.getElementById('pagesInput').value = v.pageCount;
+    if(v.description) document.getElementById('synopsisInput').value = v.description;
+    document.getElementById('lookupStatus').textContent = `Found: ${v.title}`;
+  }catch(e){
+    document.getElementById('lookupStatus').textContent = 'Lookup failed — check connection or enter manually.';
+  }
+}
+
+/* ---------- Barcode Scanner ---------- */
+function toggleScanner(){
+  const box = document.getElementById('scanBox');
+  if(box.style.display === 'block'){ stopScanner(); return; }
+  box.style.display = 'block';
+  box.innerHTML = '<div id="qrReader" style="width:100%"></div>';
+  html5QrCode = new Html5Qrcode('qrReader');
+  const config = { fps:10, qrbox:{width:250,height:120}, formatsToSupport:[ Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.UPC_A ] };
+  Html5Qrcode.getCameras().then(cams=>{
+    if(!cams || !cams.length){ document.getElementById('lookupStatus').textContent = 'No camera found.'; return; }
+    const camId = cams[cams.length-1].id;
+    html5QrCode.start(camId, config, (decodedText)=>{
+      document.getElementById('isbnInput').value = decodedText;
+      stopScanner();
+      doLookup();
+    }, ()=>{});
+  }).catch(()=>{
+    document.getElementById('lookupStatus').textContent = 'Camera access denied or unavailable.';
+  });
+}
+function stopScanner(){
+  const box = document.getElementById('scanBox');
+  if(html5QrCode){
+    html5QrCode.stop().then(()=>html5QrCode.clear()).catch(()=>{});
+    html5QrCode = null;
+  }
+  box.style.display = 'none';
+  box.innerHTML = '';
+}
+
+/* ---------- CSV Export ---------- */
+function storiesToText(stories){
+  if(!stories || !stories.length) return '';
+  return stories.map(s => s.author ? `${s.title} by ${s.author}` : s.title).join(' ; ');
+}
+
+function exportCsv(){
+  if(!books.length){ alert('Your shelf is empty — nothing to export yet.'); return; }
+  const rows = books.map(b => ({
+    'Title': b.title || '',
+    'Author': b.author || '',
+    'Publisher': b.publisher || '',
+    'Year': b.year || '',
+    'Pages': b.pages || '',
+    'Format': FORMAT_LABEL[b.format] || b.format || '',
+    'Status': STATUS_LABEL[b.status] || b.status || '',
+    'Ownership': b.ownership === 'loan' ? 'On Loan' : 'Owned',
+    'Loan Source': b.ownership === 'loan' ? (b.loanSource || '') : '',
+    'Due Date': b.ownership === 'loan' ? (b.dueDate || '') : '',
+    'Rating': b.rating || '',
+    'ISBN': b.isbn || '',
+    'Is Collection': b.isCollection ? 'Yes' : 'No',
+    'Stories': storiesToText(b.stories),
+    'Synopsis': b.synopsis || '',
+    'Notes': b.notes || '',
+    'Date Added': b.dateAdded ? b.dateAdded.slice(0,10) : ''
+  }));
+  const csv = Papa.unparse(rows);
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `the-stacks-export-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- CSV Import ---------- */
+const APP_FIELDS = [
+  {key:'title', label:'Title', aliases:['title','book title','name']},
+  {key:'author', label:'Author', aliases:['author','authors','author name']},
+  {key:'isbn', label:'ISBN', aliases:['isbn13','isbn','isbn-13']},
+  {key:'publisher', label:'Publisher', aliases:['publisher']},
+  {key:'year', label:'Year', aliases:['original publication year','year published','year','publication year']},
+  {key:'pages', label:'Pages', aliases:['number of pages','pages','page count']},
+  {key:'format', label:'Format', aliases:['binding','format']},
+  {key:'status', label:'Status', aliases:['exclusive shelf','shelf','status','read status']},
+  {key:'rating', label:'Rating', aliases:['my rating','rating']},
+  {key:'synopsis', label:'Synopsis', aliases:['synopsis','description']},
+  {key:'notes', label:'Notes', aliases:['my review','notes','review']},
+  {key:'bookshelves', label:'Bookshelves (for source detection)', aliases:['bookshelves','shelves']},
+];
+
+function openImport(){
+  showImportStep(1);
+  document.getElementById('csvFile').value = '';
+  document.getElementById('importOverlay').classList.add('open');
+}
+function closeImport(){
+  document.getElementById('importOverlay').classList.remove('open');
+}
+function showImportStep(n){
+  [1,2,3].forEach(i=> document.getElementById('importStep'+i).classList.toggle('active', i===n));
+}
+
+function handleCsvFile(file){
+  Papa.parse(file, {
+    header:true,
+    skipEmptyLines:true,
+    complete: (results)=>{
+      csvRows = results.data;
+      csvHeaders = results.meta.fields || [];
+      if(!csvRows.length){ alert('No rows found in that file.'); return; }
+      buildMapTable();
+      showImportStep(2);
+    },
+    error: ()=> alert('Could not parse that CSV file.')
+  });
+}
+
+function guessColumn(field){
+  const lowerHeaders = csvHeaders.map(h=>h.toLowerCase().trim());
+  for(const alias of field.aliases){
+    const idx = lowerHeaders.indexOf(alias);
+    if(idx>=0) return csvHeaders[idx];
+  }
+  return '';
+}
+
+function buildMapTable(){
+  document.getElementById('rowCount').textContent = csvRows.length;
+  const table = document.getElementById('mapTable');
+  table.innerHTML = '<tr><th>App field</th><th>Your column</th></tr>';
+  APP_FIELDS.forEach(f=>{
+    const guess = guessColumn(f);
+    const tr = document.createElement('tr');
+    const opts = ['<option value="">— none —</option>']
+      .concat(csvHeaders.map(h=> `<option value="${escapeHtml(h)}" ${h===guess?'selected':''}>${escapeHtml(h)}</option>`));
+    tr.innerHTML = `<td>${f.label}</td><td><select data-field="${f.key}">${opts.join('')}</select></td>`;
+    table.appendChild(tr);
+  });
+  updatePreview();
+  table.querySelectorAll('select').forEach(s=> s.onchange = updatePreview);
+}
+
+function currentMapping(){
+  const map = {};
+  document.querySelectorAll('#mapTable select').forEach(s=>{ map[s.dataset.field] = s.value; });
+  return map;
+}
+
+function updatePreview(){
+  const map = currentMapping();
+  const sample = csvRows.slice(0,3).map(row=>{
+    const t = map.title ? row[map.title] : '(untitled)';
+    const a = map.author ? row[map.author] : '';
+    return `${t} — ${a}`;
+  });
+  document.getElementById('previewBox').innerHTML = sample.map(s=>escapeHtml(s)).join('<br/>') || 'No preview available.';
+}
+
+function normalizeFormat(raw){
+  if(!raw) return 'paperback';
+  const s = raw.toLowerCase();
+  if(s.includes('audio')) return 'audiobook';
+  if(s.includes('mobi') || s.includes('kindle')) return 'mobi';
+  if(s.includes('pdf')) return 'pdf';
+  if(s.includes('epub') || s.includes('ebook') || s.includes('e-book')) return 'epub';
+  if(s.includes('trade')) return 'trade_paperback';
+  if(s.includes('hard')) return 'hardcover';
+  if(s.includes('paper') || s.includes('mass market')) return 'paperback';
+  return 'paperback';
+}
+function normalizeStatus(raw){
+  if(!raw) return 'queue';
+  const s = raw.toLowerCase();
+  if(s.includes('to-read') || s.includes('to read') || s.includes('want') || s.includes('wishlist')) return 'queue';
+  if(s.includes('current') || s.includes('reading')) return 'reading';
+  if(s.includes('dnf') || s.includes('did not finish') || s.includes('abandon')) return 'dnf';
+  if(s.includes('hold')) return 'hold';
+  if(s.includes('read')) return 'read';
+  return 'queue';
+}
+function normalizeRating(raw){
+  const n = parseInt(raw);
+  if(isNaN(n)) return 0;
+  return Math.max(0, Math.min(5, n));
+}
+function detectSource(bookshelves){
+  if(!bookshelves) return {ownership:'owned', loanSource:''};
+  const s = bookshelves.toLowerCase();
+  if(s.includes('hoopla')) return {ownership:'loan', loanSource:'Hoopla'};
+  if(s.includes('libby')) return {ownership:'loan', loanSource:'Libby'};
+  if(s.includes('library') || s.includes('loan')) return {ownership:'loan', loanSource:'Library'};
+  return {ownership:'owned', loanSource:''};
+}
+
+async function runImport(){
+  const map = currentMapping();
+  if(!map.title){ alert('Please map a column to Title at minimum.'); return; }
+  const newBooks = csvRows.map(row=>{
+    const get = k => map[k] ? (row[map[k]]||'').trim() : '';
+    const src = detectSource(get('bookshelves'));
+    return {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,8),
+      isbn: get('isbn').replace(/[^0-9Xx]/g,''),
+      title: get('title') || '(untitled)',
+      author: get('author'),
+      publisher: get('publisher'),
+      year: (get('year').match(/\d{4}/)||[''])[0],
+      pages: get('pages') ? parseInt(get('pages')) || null : null,
+      format: normalizeFormat(get('format')),
+      status: normalizeStatus(get('status')),
+      ownership: src.ownership,
+      loanSource: src.loanSource,
+      dueDate: '',
+      rating: normalizeRating(get('rating')),
+      isCollection: false,
+      stories: [],
+      synopsis: get('synopsis'),
+      notes: get('notes'),
+      dateAdded: new Date().toISOString()
+    };
+  }).filter(b=> b.title);
+
+  await dbPutMany(newBooks);
+  books = books.concat(newBooks);
+  document.getElementById('importedCount').textContent = newBooks.length;
+  showImportStep(3);
+  render();
+}
+</script>
+</body>
+</html>
