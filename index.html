@@ -50,13 +50,13 @@
 
   header.top{
     position:sticky; top:0; z-index:20;
-    background:linear-gradient(var(--paper) 85%, transparent);
+    background:var(--paper);
     padding-top:env(safe-area-inset-top);
     border-bottom:1px solid var(--rule);
   }
   .top-inner{
-    display:flex; align-items:baseline; justify-content:space-between;
-    padding:18px 18px 10px;
+    display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap;
+    padding:18px 18px 10px; row-gap:8px;
     max-width:1100px; margin:0 auto; gap:10px;
   }
   .wordmark{
@@ -70,11 +70,12 @@
     border:1px solid var(--brass); padding:2px 6px; border-radius:2px;
     transform:translateY(-6px);
   }
-  .top-actions{ display:flex; align-items:center; gap:10px; }
+  .top-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .count{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-faint); white-space:nowrap; }
   .icon-btn{
     background:none; border:1px solid var(--rule); color:var(--ink-soft); border-radius:3px;
     font-family:'IBM Plex Mono', monospace; font-size:11px; padding:6px 9px; cursor:pointer;
+    white-space:nowrap;
   }
   .sync-dot{
     display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; vertical-align:middle;
@@ -84,7 +85,7 @@
   .sync-dot.syncing{ background:var(--brass); animation:pulse 1s infinite ease-in-out; }
   .sync-dot.err{ background:var(--burgundy); }
   @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
-  .sync-label{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-faint); }
+  .sync-label{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-faint); white-space:nowrap; }
 
   .controls{
     display:flex; gap:8px; flex-wrap:wrap; align-items:center;
@@ -132,12 +133,13 @@
   .spine .spine-title{
     writing-mode:vertical-rl; transform:rotate(180deg);
     font-family:'Fraunces', serif; font-weight:600; font-size:12.5px;
-    max-height:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    max-height:100%; overflow:hidden; white-space:nowrap;
     letter-spacing:0.3px;
   }
   .spine.status-reading{ background:linear-gradient(180deg, var(--slate), #38506A); }
   .spine.status-queue{ background:linear-gradient(180deg, #B9AE8C, var(--paper-darker)); color:var(--ink); }
   .spine.status-read{ background:linear-gradient(180deg, var(--forest), #33502E); }
+  .spine.status-library{ background:linear-gradient(180deg, #5C8A82, #486E68); }
   .spine.status-hold{ background:linear-gradient(180deg, var(--brass-light), var(--brass)); color:var(--ink); }
   .spine.status-dnf{ background:linear-gradient(180deg, var(--dnf), #6E5555); }
   .spine.fmt-ebook{
@@ -165,7 +167,27 @@
   .book-card{
     background:var(--paper-dark); border:1px solid var(--rule); border-radius:var(--radius);
     padding:12px 14px; cursor:pointer; box-shadow:var(--shadow);
+    display:flex; gap:12px;
   }
+  .book-card .cover-thumb{
+    width:48px; height:72px; object-fit:cover; border-radius:2px; border:1px solid var(--rule);
+    flex-shrink:0; background:var(--paper);
+  }
+  .book-card .card-body{ flex:1; min-width:0; }
+
+  .loglist{ display:flex; flex-direction:column; gap:8px; margin:16px 0; }
+  .log-row{
+    display:flex; gap:12px; align-items:flex-start;
+    background:var(--paper-dark); border:1px solid var(--rule); border-radius:var(--radius);
+    padding:10px 12px;
+  }
+  .log-row .cover-thumb{
+    width:40px; height:60px; object-fit:cover; border-radius:2px; border:1px solid var(--rule);
+    flex-shrink:0; background:var(--paper);
+  }
+  .log-body{ flex:1; min-width:0; }
+  .log-title{ font-family:'Fraunces',serif; font-size:15px; color:var(--ink); }
+  .log-remove{ flex-shrink:0; align-self:center; }
   .book-card h3{ font-family:'Fraunces',serif; font-size:16px; margin:0 0 2px; color:var(--ink); }
   .book-card .auth{ font-size:13px; color:var(--ink-soft); margin-bottom:4px; }
   .book-card .meta{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--ink-faint); margin-bottom:8px; }
@@ -226,6 +248,13 @@
   .actions .right{ display:flex; gap:8px; }
   #scanBox{ margin-top:10px; border-radius:4px; overflow:hidden; display:none; }
   .lookup-status{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-faint); margin-top:6px; min-height:14px; }
+  .cover-row{ display:flex; gap:10px; align-items:flex-start; margin-top:2px; }
+  .cover-preview{
+    width:56px; height:84px; object-fit:cover; border-radius:2px; border:1px solid var(--rule);
+    background:var(--paper-dark); flex-shrink:0;
+  }
+  .cover-controls{ flex:1; }
+  .cover-controls input{ margin-bottom:0; }
   .status-swatch{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; }
 
   .star-pick{ display:flex; gap:4px; margin-top:2px; }
@@ -260,6 +289,32 @@
     color:var(--ink-faint); font-family:'IBM Plex Mono',monospace; font-size:12px; margin-top:10px;
   }
   .previewbox{ background:var(--paper-dark); border-radius:4px; padding:10px; margin-top:10px; font-family:'IBM Plex Mono',monospace; font-size:11px; max-height:160px; overflow:auto; }
+
+  /* Phone-width layout (iPhone etc.) */
+  @media(max-width:480px){
+    .top-inner{ padding:14px 14px 8px; }
+    .wordmark{ font-size:21px; }
+    .wordmark .tick{ font-size:10px; padding:1px 5px; }
+    .top-actions{ width:100%; justify-content:space-between; gap:6px; }
+    .sync-label{ font-size:10px; }
+    .icon-btn{ font-size:10px; padding:5px 7px; }
+    .count{ font-size:10px; }
+    .controls{ padding:0 14px 12px; gap:6px; }
+    .search{ flex:1 1 100%; }
+    select.filt{ flex:1 1 calc(50% - 4px); }
+    .view-toggle{ flex:1 1 100%; }
+    .view-toggle button{ flex:1 1 33.33%; text-align:center; }
+    .fab{ right:16px; bottom:calc(22px + env(safe-area-inset-bottom)); width:52px; height:52px; font-size:26px; }
+    .sheet{ padding:16px 16px calc(20px + env(safe-area-inset-bottom)); }
+    .shelf{ padding:12px 8px 12px; gap:2px; }
+  }
+
+  /* Tablet-width layout (iPad mini portrait and similar) */
+  @media(min-width:481px) and (max-width:834px){
+    .top-inner{ padding:16px 16px 8px; }
+    .controls{ padding:0 16px 14px; }
+    select.filt{ flex:1 1 auto; }
+  }
 </style>
 </head>
 <body>
@@ -282,6 +337,7 @@
       <option value="read">read</option>
       <option value="reading">reading</option>
       <option value="queue">to read</option>
+      <option value="library">in library</option>
       <option value="hold">on hold</option>
       <option value="dnf">did not finish</option>
     </select>
@@ -309,6 +365,7 @@
     <div class="view-toggle">
       <button id="btnShelf" class="active">SHELF</button>
       <button id="btnList">LIST</button>
+      <button id="btnLog">LOG</button>
     </div>
   </div>
 </header>
@@ -330,6 +387,15 @@
     </div>
     <div id="scanBox"></div>
     <div class="lookup-status" id="lookupStatus"></div>
+
+    <label>Cover image</label>
+    <div class="cover-row">
+      <img id="coverPreview" class="cover-preview" style="display:none;" />
+      <div class="cover-controls">
+        <input type="text" id="coverUrlInput" placeholder="Cover image URL (fetched automatically, or paste your own)" />
+        <button type="button" class="btn ghost small" id="findCoverBtn" style="margin-top:6px;">Find cover by title/author</button>
+      </div>
+    </div>
 
     <label>Title</label>
     <input type="text" id="titleInput" placeholder="Title" />
@@ -374,6 +440,7 @@
           <option value="queue">To Read</option>
           <option value="reading">Reading</option>
           <option value="read">Read</option>
+          <option value="library">In Library</option>
           <option value="hold">On Hold</option>
           <option value="dnf">Did Not Finish</option>
         </select>
@@ -513,16 +580,20 @@
 /* ---------- IndexedDB layer ---------- */
 const DB_NAME = 'thestacks';
 const STORE = 'books';
+const LOG_STORE = 'readlog';
 let db;
 
 function openDB(){
   return new Promise((resolve, reject)=>{
-    const req = indexedDB.open(DB_NAME, 2);
+    const req = indexedDB.open(DB_NAME, 3);
     req.onupgradeneeded = e => {
       const d = e.target.result;
       if(!d.objectStoreNames.contains(STORE)){
         const s = d.createObjectStore(STORE, {keyPath:'id'});
         s.createIndex('status','status');
+      }
+      if(!d.objectStoreNames.contains(LOG_STORE)){
+        d.createObjectStore(LOG_STORE, {keyPath:'id'});
       }
     };
     req.onsuccess = e => { db = e.target.result; resolve(db); };
@@ -573,16 +644,52 @@ function dbClearAndPutAll(list){
   });
 }
 
+function dbLogGetAll(){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(LOG_STORE,'readonly');
+    const req = tx.objectStore(LOG_STORE).getAll();
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = reject;
+  });
+}
+function dbLogPut(entry){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(LOG_STORE,'readwrite');
+    tx.objectStore(LOG_STORE).put(entry);
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
+}
+function dbLogDelete(id){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(LOG_STORE,'readwrite');
+    tx.objectStore(LOG_STORE).delete(id);
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
+}
+function dbLogClearAndPutAll(list){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(LOG_STORE,'readwrite');
+    const s = tx.objectStore(LOG_STORE);
+    s.clear();
+    list.forEach(e=> s.put(e));
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
+}
+
 /* ---------- State ---------- */
 let books = [];
+let readLog = [];
 let currentView = 'shelf';
 let editingId = null;
 let html5QrCode = null;
 let csvRows = [];
 let csvHeaders = [];
 
-const STATUS_LABEL = {read:'Read', reading:'Reading', queue:'To Read', hold:'On Hold', dnf:'Did Not Finish'};
-const STATUS_COLOR = {read:'#3E5D46', reading:'#45607A', queue:'#B9AE8C', hold:'#D9AD63', dnf:'#8A6E6E'};
+const STATUS_LABEL = {read:'Read', reading:'Reading', queue:'To Read', library:'In Library', hold:'On Hold', dnf:'Did Not Finish'};
+const STATUS_COLOR = {read:'#3E5D46', reading:'#45607A', queue:'#B9AE8C', library:'#5C8A82', hold:'#D9AD63', dnf:'#8A6E6E'};
 const FORMAT_LABEL = {hardcover:'Hardcover', paperback:'Paperback', trade_paperback:'Trade Paperback', epub:'Ebook · EPUB', mobi:'Ebook · MOBI', pdf:'Ebook · PDF', audiobook:'Audiobook'};
 const EBOOK_FORMATS = ['epub','mobi','pdf'];
 
@@ -622,6 +729,7 @@ function toDbRow(b){
     loan_source: b.loanSource || null, due_date: b.dueDate || null,
     date_read: b.dateRead || null, series_name: b.seriesName || null, series_number: b.seriesNumber || null,
     location: b.location || null, confidence: b.uncertain ? 'Uncertain' : null,
+    cover_url: b.coverUrl || null,
     rating: b.rating || 0, is_collection: !!b.isCollection, stories: b.stories || [],
     synopsis: b.synopsis || null, notes: b.notes || null,
     date_added: b.dateAdded || new Date().toISOString(),
@@ -637,6 +745,7 @@ function fromDbRow(r){
     loanSource: r.loan_source || '', dueDate: r.due_date || '',
     dateRead: r.date_read || '', seriesName: r.series_name || '', seriesNumber: r.series_number || '',
     location: r.location || '', uncertain: (r.confidence || '').toLowerCase() === 'uncertain',
+    coverUrl: r.cover_url || '',
     rating: r.rating || 0, isCollection: !!r.is_collection, stories: r.stories || [],
     synopsis: r.synopsis || '', notes: r.notes || '',
     dateAdded: r.date_added, _dirty: false
@@ -660,11 +769,45 @@ async function pullAllFromCloud(){
   return data.map(fromDbRow);
 }
 
+function toLogDbRow(e){
+  return {
+    id: e.id, book_id: e.bookId || null, title: e.title, author: e.author || null,
+    format: e.format || null, category: e.category || null, rating: e.rating || 0,
+    date_read: e.dateRead || null, source: e.source || null, notes: e.notes || null,
+    cover_url: e.coverUrl || null, created_at: e.createdAt || new Date().toISOString()
+  };
+}
+function fromLogDbRow(r){
+  return {
+    id: r.id, bookId: r.book_id || '', title: r.title, author: r.author || '',
+    format: r.format || '', category: r.category || '', rating: r.rating || 0,
+    dateRead: r.date_read || '', source: r.source || '', notes: r.notes || '',
+    coverUrl: r.cover_url || '', createdAt: r.created_at, _dirty: false
+  };
+}
+async function pushLogToCloud(entry){
+  if(!supabaseClient) return false;
+  const { error } = await supabaseClient.from('read_log').upsert(toLogDbRow(entry));
+  return !error;
+}
+async function deleteLogFromCloud(id){
+  if(!supabaseClient) return false;
+  const { error } = await supabaseClient.from('read_log').delete().eq('id', id);
+  return !error;
+}
+async function pullAllLogFromCloud(){
+  if(!supabaseClient) return null;
+  const { data, error } = await supabaseClient.from('read_log').select('*');
+  if(error) return null;
+  return data.map(fromLogDbRow);
+}
+
 async function fullSync(){
   if(!supabaseClient) return;
   setSyncIndicator('syncing', 'Syncing…');
   const cloudBooks = await pullAllFromCloud();
-  if(cloudBooks === null){
+  const cloudLog = await pullAllLogFromCloud();
+  if(cloudBooks === null || cloudLog === null){
     setSyncIndicator('err', 'Sync error — check URL/key');
     return;
   }
@@ -679,7 +822,88 @@ async function fullSync(){
     const ok = await pushBookToCloud(b);
     if(ok){ b._dirty = false; await dbPut(b); }
   }
+
+  const localLogDirty = readLog.filter(e => e._dirty);
+  const mergedLog = {};
+  cloudLog.forEach(e => mergedLog[e.id] = e);
+  localLogDirty.forEach(e => mergedLog[e.id] = e);
+  readLog = Object.values(mergedLog);
+  await dbLogClearAndPutAll(readLog);
+
+  for(const e of localLogDirty){
+    const ok = await pushLogToCloud(e);
+    if(ok){ e._dirty = false; await dbLogPut(e); }
+  }
+
   setSyncIndicator('on', `Synced · ${books.length} books`);
+  render();
+}
+
+/* ---------- Realtime sync (live updates across devices) ---------- */
+let realtimeChannel = null;
+let realtimeLogChannel = null;
+
+function subscribeRealtime(){
+  if(!supabaseClient) return;
+  if(!realtimeChannel){
+    realtimeChannel = supabaseClient
+      .channel('books-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, handleRealtimeChange)
+      .subscribe();
+  }
+  if(!realtimeLogChannel){
+    realtimeLogChannel = supabaseClient
+      .channel('read-log-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'read_log' }, handleRealtimeLogChange)
+      .subscribe();
+  }
+}
+
+function unsubscribeRealtime(){
+  if(supabaseClient){
+    if(realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+    if(realtimeLogChannel) supabaseClient.removeChannel(realtimeLogChannel);
+  }
+  realtimeChannel = null;
+  realtimeLogChannel = null;
+}
+
+async function handleRealtimeChange(payload){
+  if(payload.eventType === 'DELETE'){
+    const id = payload.old.id;
+    if(!books.find(b=>b.id===id)) return;
+    books = books.filter(b=>b.id!==id);
+    await dbDelete(id);
+    setSyncIndicator('on', `Synced · ${books.length} books`);
+    render();
+    return;
+  }
+  const incoming = fromDbRow(payload.new);
+  const existing = books.find(b=>b.id===incoming.id);
+  // Don't clobber a change we made locally that hasn't finished pushing yet.
+  if(existing && existing._dirty) return;
+  await dbPut(incoming);
+  const idx = books.findIndex(b=>b.id===incoming.id);
+  if(idx>=0) books[idx] = incoming; else books.push(incoming);
+  setSyncIndicator('on', `Synced · ${books.length} books`);
+  render();
+}
+
+async function handleRealtimeLogChange(payload){
+  if(payload.eventType === 'DELETE'){
+    const id = payload.old.id;
+    if(!readLog.find(e=>e.id===id)) return;
+    readLog = readLog.filter(e=>e.id!==id);
+    await dbLogDelete(id);
+    render();
+    return;
+  }
+  const incoming = fromLogDbRow(payload.new);
+  const existing = readLog.find(e=>e.id===incoming.id);
+  if(existing && existing._dirty) return;
+  await dbLogPut(incoming);
+  const idx = readLog.findIndex(e=>e.id===incoming.id);
+  if(idx>=0) readLog[idx] = incoming; else readLog.push(incoming);
   render();
 }
 
@@ -687,6 +911,7 @@ async function fullSync(){
 window.addEventListener('DOMContentLoaded', async ()=>{
   await openDB();
   books = await dbGetAll();
+  readLog = await dbLogGetAll();
   render();
 
   if(initSupabaseClient()){
@@ -697,7 +922,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     document.getElementById('sbPushAllBtn').style.display = 'inline-block';
     document.getElementById('sbConnectBtn').textContent = 'Reconnect';
     setSyncIndicator('syncing', 'Syncing…');
-    fullSync();
+    fullSync().then(()=> subscribeRealtime());
   }
 
   document.getElementById('addFab').onclick = ()=> openSheet(null);
@@ -706,6 +931,8 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('saveBtn').onclick = saveBook;
   document.getElementById('deleteBtn').onclick = removeBook;
   document.getElementById('lookupBtn').onclick = doLookup;
+  document.getElementById('findCoverBtn').onclick = findCoverByTitleAuthor;
+  document.getElementById('coverUrlInput').oninput = updateCoverPreview;
   document.getElementById('scanBtn').onclick = toggleScanner;
   document.getElementById('searchInput').oninput = render;
   document.getElementById('statusFilter').onchange = render;
@@ -714,10 +941,16 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('categoryFilter').onchange = render;
   document.getElementById('btnShelf').onclick = ()=> setView('shelf');
   document.getElementById('btnList').onclick = ()=> setView('list');
+  document.getElementById('btnLog').onclick = ()=> setView('log');
 
   document.querySelectorAll('input[name=ownership]').forEach(r=>{
-    r.onchange = ()=>{ document.getElementById('loanSourceRow').style.display = (r.value==='loan' && r.checked) ? 'block' : (document.querySelector('input[name=ownership]:checked').value==='loan' ? 'block':'none'); };
+    r.onchange = ()=>{
+      const isLoan = document.querySelector('input[name=ownership]:checked').value === 'loan';
+      document.getElementById('loanSourceRow').style.display = isLoan ? 'block' : 'none';
+      maybeAutoSetLibraryStatus();
+    };
   });
+  document.getElementById('loanSourceInput').onchange = maybeAutoSetLibraryStatus;
   document.getElementById('isCollectionInput').onchange = (e)=>{
     document.getElementById('storySection').classList.toggle('show', e.target.checked);
     document.getElementById('addStoryBtn').style.display = e.target.checked ? 'inline-block' : 'none';
@@ -768,6 +1001,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     document.getElementById('sbConnectBtn').textContent = 'Reconnect';
     document.getElementById('sbStatus').textContent = `Connected. ${cloudBooks.length} books found in the cloud.`;
     await fullSync();
+    subscribeRealtime();
   };
   document.getElementById('sbPushAllBtn').onclick = async ()=>{
     if(!supabaseClient) return;
@@ -778,11 +1012,17 @@ window.addEventListener('DOMContentLoaded', async ()=>{
       const ok = await pushBookToCloud(b);
       if(ok){ b._dirty = false; await dbPut(b); count++; }
     }
-    document.getElementById('sbStatus').textContent = `Pushed ${count} of ${books.length} books to the cloud.`;
+    let logCount = 0;
+    for(const e of readLog){
+      const ok = await pushLogToCloud(e);
+      if(ok){ e._dirty = false; await dbLogPut(e); logCount++; }
+    }
+    document.getElementById('sbStatus').textContent = `Pushed ${count} of ${books.length} books and ${logCount} of ${readLog.length} reading history entries to the cloud.`;
     setSyncIndicator('on', `Synced · ${books.length} books`);
   };
   document.getElementById('sbDisconnectBtn').onclick = ()=>{
     if(!confirm('Disconnect from cloud sync? Your books stay on this device, but devices will stop sharing updates.')) return;
+    unsubscribeRealtime();
     clearSbConfig();
     supabaseClient = null;
     document.getElementById('sbDisconnectBtn').style.display = 'none';
@@ -816,6 +1056,7 @@ function setView(v){
   currentView = v;
   document.getElementById('btnShelf').classList.toggle('active', v==='shelf');
   document.getElementById('btnList').classList.toggle('active', v==='list');
+  document.getElementById('btnLog').classList.toggle('active', v==='log');
   render();
 }
 
@@ -854,8 +1095,14 @@ function refreshCategoryFilter(){
 
 function render(){
   refreshCategoryFilter();
-  const list = filteredBooks();
   document.getElementById('countLabel').textContent = `${books.length} volume${books.length===1?'':'s'}`;
+
+  if(currentView === 'log'){
+    renderLog();
+    return;
+  }
+
+  const list = filteredBooks();
   const area = document.getElementById('mainArea');
   area.innerHTML = '';
 
@@ -882,7 +1129,10 @@ function render(){
       const widthSeed = 30 + (hashStr(b.author||'') % 14);
       s.style.height = heightSeed + 'px';
       s.style.width = widthSeed + 'px';
-      s.innerHTML = `<span class="spine-title">${escapeHtml(b.title)}</span>`;
+      const maxChars = Math.max(4, Math.floor((heightSeed - 16) / 13));
+      const displayTitle = b.title.length > maxChars ? b.title.slice(0, maxChars - 1).trim() + '…' : b.title;
+      s.title = b.title;
+      s.innerHTML = `<span class="spine-title">${escapeHtml(displayTitle)}</span>`;
       if(b.ownership==='loan' && b.dueDate){
         s.innerHTML += `<span class="tag">due ${formatDateShort(b.dueDate)}</span>`;
       }
@@ -901,6 +1151,8 @@ function render(){
       const metaBits = [b.publisher, b.year, b.pages ? `${b.pages}p` : ''].filter(Boolean).join(' · ');
       const seriesBit = b.seriesName ? `${b.seriesName}${b.seriesNumber ? ' #'+b.seriesNumber : ''}` : '';
       c.innerHTML = `
+        ${b.coverUrl ? `<img class="cover-thumb" src="${escapeHtml(b.coverUrl)}" loading="lazy" onerror="this.remove()" />` : ''}
+        <div class="card-body">
         <h3>${escapeHtml(b.title)}${b.uncertain ? ' <span title="Flagged as uncertain" style="color:var(--burgundy);">?</span>' : ''}</h3>
         <div class="auth">${escapeHtml(b.author||'Unknown author')}</div>
         ${metaBits ? `<div class="meta">${escapeHtml(metaBits)}</div>` : ''}
@@ -912,6 +1164,7 @@ function render(){
           <span class="pill">${escapeHtml(sourceLabel(b))}</span>
           ${b.category ? `<span class="pill">${escapeHtml(b.category)}</span>` : ''}
           ${b.isCollection ? `<span class="pill">${(b.stories||[]).length} stories</span>` : ''}
+        </div>
         </div>`;
       grid.appendChild(c);
     });
@@ -919,10 +1172,77 @@ function render(){
   }
 }
 
+function renderLog(){
+  const area = document.getElementById('mainArea');
+  area.innerHTML = '';
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  let list = [...readLog].sort((a,b)=> (b.dateRead||'').localeCompare(a.dateRead||''));
+  if(q){
+    list = list.filter(e => `${e.title} ${e.author}`.toLowerCase().includes(q));
+  }
+
+  if(readLog.length === 0){
+    area.innerHTML = `<div class="empty"><div class="big">No reading history yet</div>Mark a book "Read" and it'll show up here permanently — even if you later remove the book itself (handy for returned library books).</div>`;
+    return;
+  }
+  if(list.length === 0){
+    area.innerHTML = `<div class="empty"><div class="big">No matches</div>Try a different search.</div>`;
+    return;
+  }
+
+  const section = document.createElement('div');
+  section.className = 'shelf-section';
+  section.innerHTML = `<div class="shelf-label">${list.length} finished</div>`;
+  const logList = document.createElement('div');
+  logList.className = 'loglist';
+  list.forEach(e=>{
+    const row = document.createElement('div');
+    row.className = 'log-row';
+    row.innerHTML = `
+      ${e.coverUrl ? `<img class="cover-thumb" src="${escapeHtml(e.coverUrl)}" loading="lazy" onerror="this.remove()" />` : ''}
+      <div class="log-body">
+        <div class="log-title">${escapeHtml(e.title)}</div>
+        <div class="auth">${escapeHtml(e.author||'Unknown author')}</div>
+        <div class="pillrow">
+          <span class="pill">finished ${e.dateRead ? formatDateShort(e.dateRead) : '—'}</span>
+          ${e.rating ? `<span class="pill">${'★'.repeat(e.rating)}${'☆'.repeat(5-e.rating)}</span>` : ''}
+          ${e.source ? `<span class="pill">${escapeHtml(e.source)}</span>` : ''}
+          ${e.format ? `<span class="pill">${FORMAT_LABEL[e.format]||e.format}</span>` : ''}
+        </div>
+      </div>
+      <button type="button" class="btn ghost small log-remove" title="Remove from reading history">×</button>`;
+    row.querySelector('.log-remove').onclick = (ev)=>{ ev.stopPropagation(); removeLogEntry(e.id); };
+    logList.appendChild(row);
+  });
+  section.appendChild(logList);
+  area.appendChild(section);
+}
+
+async function removeLogEntry(id){
+  if(!confirm('Remove this entry from your reading history? This cannot be undone.')) return;
+  readLog = readLog.filter(e=>e.id!==id);
+  await dbLogDelete(id);
+  if(supabaseClient) await deleteLogFromCloud(id);
+  render();
+}
+
 function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) >>> 0; } return h; }
 function escapeHtml(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function formatDateShort(iso){ if(!iso) return ''; const d = new Date(iso+'T00:00:00'); return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
 function paintStars(val){ document.querySelectorAll('#starPick button').forEach(b=> b.classList.toggle('on', parseInt(b.dataset.val) <= val)); }
+
+function maybeAutoSetLibraryStatus(){
+  const ownership = document.querySelector('input[name=ownership]:checked').value;
+  const cur = document.getElementById('statusInput').value;
+  // Only nudge the status if it's still at a "fresh" default — never clobber a status
+  // the person picked deliberately (e.g. Read, On Hold, DNF).
+  if(!['library','reading','queue'].includes(cur)) return;
+  if(ownership === 'owned'){
+    document.getElementById('statusInput').value = 'library';
+  } else {
+    document.getElementById('statusInput').value = 'reading';
+  }
+}
 
 /* ---------- Story rows (collections) ---------- */
 function parseStoryLines(text){
@@ -960,6 +1280,8 @@ function openSheet(id){
   const b = id ? books.find(x=>x.id===id) : null;
   document.getElementById('sheetTitle').textContent = b ? 'Edit Entry' : 'Add to the Stacks';
   document.getElementById('isbnInput').value = b?.isbn || '';
+  document.getElementById('coverUrlInput').value = b?.coverUrl || '';
+  updateCoverPreview();
   document.getElementById('titleInput').value = b?.title || '';
   document.getElementById('authorInput').value = b?.author || '';
   document.getElementById('publisherInput').value = b?.publisher || '';
@@ -1012,9 +1334,16 @@ async function saveBook(){
   if(!title){ document.getElementById('titleInput').focus(); return; }
   const ownership = document.querySelector('input[name=ownership]:checked').value;
   const isCollection = document.getElementById('isCollectionInput').checked;
+  const status = document.getElementById('statusInput').value;
+  let dateRead = document.getElementById('dateReadInput').value;
+  if(status === 'read' && !dateRead){
+    dateRead = new Date().toISOString().slice(0,10);
+    document.getElementById('dateReadInput').value = dateRead;
+  }
   const book = {
     id: editingId || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
     isbn: document.getElementById('isbnInput').value.trim(),
+    coverUrl: document.getElementById('coverUrlInput').value.trim(),
     title,
     author: document.getElementById('authorInput').value.trim(),
     publisher: document.getElementById('publisherInput').value.trim(),
@@ -1023,8 +1352,8 @@ async function saveBook(){
     pages: document.getElementById('pagesInput').value ? parseInt(document.getElementById('pagesInput').value) : null,
     category: document.getElementById('categoryInput').value.trim(),
     format: document.getElementById('formatInput').value,
-    status: document.getElementById('statusInput').value,
-    dateRead: document.getElementById('dateReadInput').value,
+    status,
+    dateRead,
     seriesName: document.getElementById('seriesNameInput').value.trim(),
     seriesNumber: document.getElementById('seriesNumberInput').value.trim(),
     location: document.getElementById('locationFieldInput').value.trim(),
@@ -1046,6 +1375,10 @@ async function saveBook(){
   closeSheet();
   render();
 
+  if(book.status === 'read'){
+    await logFinishedBook(book);
+  }
+
   if(supabaseClient){
     setSyncIndicator('syncing', 'Syncing…');
     const ok = await pushBookToCloud(book);
@@ -1054,9 +1387,40 @@ async function saveBook(){
   }
 }
 
+async function logFinishedBook(book){
+  const existing = readLog.find(e => e.bookId === book.id);
+  const entry = {
+    id: existing ? existing.id : (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+    bookId: book.id,
+    title: book.title,
+    author: book.author,
+    format: book.format,
+    category: book.category,
+    rating: book.rating,
+    dateRead: book.dateRead || new Date().toISOString().slice(0,10),
+    source: sourceLabel(book),
+    notes: book.notes,
+    coverUrl: book.coverUrl,
+    createdAt: existing ? existing.createdAt : new Date().toISOString(),
+    _dirty: true
+  };
+  await dbLogPut(entry);
+  const idx = readLog.findIndex(e => e.id === entry.id);
+  if(idx>=0) readLog[idx] = entry; else readLog.push(entry);
+  if(supabaseClient){
+    const ok = await pushLogToCloud(entry);
+    if(ok){ entry._dirty = false; await dbLogPut(entry); }
+  }
+  if(currentView === 'log') render();
+}
+
 async function removeBook(){
   if(!editingId) return;
-  if(!confirm('Remove this book from the stacks?')) return;
+  const wasRead = books.find(b=>b.id===editingId)?.status === 'read';
+  const msg = wasRead
+    ? 'Remove this book from the stacks? Its entry in your reading history will stay.'
+    : 'Remove this book from the stacks?';
+  if(!confirm(msg)) return;
   const id = editingId;
   await dbDelete(id);
   books = books.filter(b=>b.id!==id);
@@ -1084,9 +1448,44 @@ async function doLookup(){
     if(v.publishedDate) document.getElementById('yearInput').value = v.publishedDate.slice(0,4);
     if(v.pageCount) document.getElementById('pagesInput').value = v.pageCount;
     if(v.description) document.getElementById('synopsisInput').value = v.description;
+    setCoverFromGoogleImageLinks(v.imageLinks);
     document.getElementById('lookupStatus').textContent = `Found: ${v.title}`;
   }catch(e){
     document.getElementById('lookupStatus').textContent = 'Lookup failed — check connection or enter manually.';
+  }
+}
+
+function setCoverFromGoogleImageLinks(imageLinks){
+  const raw = imageLinks && (imageLinks.thumbnail || imageLinks.smallThumbnail);
+  if(!raw) return;
+  const url = raw.replace(/^http:/, 'https:');
+  document.getElementById('coverUrlInput').value = url;
+  updateCoverPreview();
+}
+
+function updateCoverPreview(){
+  const url = document.getElementById('coverUrlInput').value.trim();
+  const img = document.getElementById('coverPreview');
+  if(url){ img.src = url; img.style.display = 'block'; }
+  else{ img.style.display = 'none'; img.src = ''; }
+}
+
+async function findCoverByTitleAuthor(){
+  const title = document.getElementById('titleInput').value.trim();
+  const author = document.getElementById('authorInput').value.trim();
+  if(!title){ document.getElementById('lookupStatus').textContent = 'Enter a title first.'; return; }
+  document.getElementById('lookupStatus').textContent = 'Searching for a cover…';
+  try{
+    let q = `intitle:${title}`;
+    if(author) q += `+inauthor:${author.split('(')[0].trim()}`;
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    const item = data.items && data.items.find(i => i.volumeInfo.imageLinks) ;
+    if(!item){ document.getElementById('lookupStatus').textContent = 'No cover found for that title/author.'; return; }
+    setCoverFromGoogleImageLinks(item.volumeInfo.imageLinks);
+    document.getElementById('lookupStatus').textContent = `Found a cover via "${item.volumeInfo.title}".`;
+  }catch(e){
+    document.getElementById('lookupStatus').textContent = 'Cover search failed — check connection.';
   }
 }
 
@@ -1153,6 +1552,7 @@ function exportCsv(){
     'Synopsis': b.synopsis || '',
     'Notes': b.notes || '',
     'Confidence': b.uncertain ? 'Uncertain' : '',
+    'Cover URL': b.coverUrl || '',
     'Date Added': b.dateAdded ? b.dateAdded.slice(0,10) : ''
   }));
   const csv = Papa.unparse(rows);
@@ -1188,6 +1588,7 @@ const APP_FIELDS = [
   {key:'hasContents', label:'Has Contents', aliases:['has contents']},
   {key:'contents', label:'Contents (stories, one per line)', aliases:['contents']},
   {key:'confidence', label:'Confidence', aliases:['confidence']},
+  {key:'coverUrl', label:'Cover URL', aliases:['cover url','cover image','cover']},
   {key:'synopsis', label:'Synopsis', aliases:['synopsis','description']},
   {key:'notes', label:'Notes', aliases:['my review','notes','review']},
   {key:'bookshelves', label:'Bookshelves (for source detection)', aliases:['bookshelves','shelves']},
@@ -1319,12 +1720,13 @@ async function runImport(){
       pages: get('pages') ? parseInt(get('pages')) || null : null,
       category: get('category'),
       format: normalizeFormat(get('format')),
-      status: normalizeStatus(get('status')),
+      status: get('status') ? normalizeStatus(get('status')) : (src.ownership === 'owned' ? 'library' : 'reading'),
       dateRead: get('dateRead'),
       seriesName: get('seriesName'),
       seriesNumber: get('seriesNumber'),
       location: get('location'),
       uncertain: get('confidence').toLowerCase().includes('uncertain'),
+      coverUrl: get('coverUrl'),
       ownership: src.ownership,
       loanSource: src.loanSource,
       dueDate: '',
