@@ -303,6 +303,9 @@
       <option value="Libby">libby</option>
       <option value="Other">other loan</option>
     </select>
+    <select class="filt" id="categoryFilter">
+      <option value="">all categories</option>
+    </select>
     <div class="view-toggle">
       <button id="btnShelf" class="active">SHELF</button>
       <button id="btnList">LIST</button>
@@ -331,14 +334,26 @@
     <label>Title</label>
     <input type="text" id="titleInput" placeholder="Title" />
 
-    <label>Author</label>
-    <input type="text" id="authorInput" placeholder="Author" />
+    <label>Author / Editor</label>
+    <input type="text" id="authorInput" placeholder="Author, or Editor Name (ed.)" />
 
     <div class="row3">
       <div><label>Publisher</label><input type="text" id="publisherInput" placeholder="Publisher" /></div>
-      <div><label>Year</label><input type="text" id="yearInput" placeholder="1979" inputmode="numeric" /></div>
-      <div><label>Pages</label><input type="number" id="pagesInput" placeholder="320" min="0" /></div>
+      <div><label>Original Year</label><input type="text" id="yearInput" placeholder="1979" inputmode="numeric" /></div>
+      <div><label>Edition Year</label><input type="text" id="editionYearInput" placeholder="2004" inputmode="numeric" /></div>
     </div>
+
+    <div class="row2">
+      <div><label>Pages</label><input type="number" id="pagesInput" placeholder="320" min="0" /></div>
+      <div><label>Category / Genre</label><input type="text" id="categoryInput" list="categorySuggest" placeholder="Science Fiction" /></div>
+    </div>
+    <datalist id="categorySuggest">
+      <option value="Science Fiction"><option value="Fantasy"><option value="Horror">
+      <option value="Fiction"><option value="Nonfiction"><option value="Reference">
+      <option value="Memoir"><option value="Thriller"><option value="Music">
+      <option value="Film"><option value="Film/Animation"><option value="Comics">
+      <option value="Technology"><option value="Photography"><option value="Cooking">
+    </datalist>
 
     <div class="row2">
       <div>
@@ -364,6 +379,17 @@
         </select>
       </div>
     </div>
+
+    <label>Date read <span class="hint">(optional)</span></label>
+    <input type="date" id="dateReadInput" />
+
+    <div class="row2">
+      <div><label>Series name</label><input type="text" id="seriesNameInput" placeholder="Old Man's War" /></div>
+      <div><label>Series #</label><input type="text" id="seriesNumberInput" placeholder="1" /></div>
+    </div>
+
+    <label>Location / Shelf</label>
+    <input type="text" id="locationFieldInput" placeholder="Office shelf 3, box 2, garage…" />
 
     <fieldset>
       <legend>Ownership</legend>
@@ -395,12 +421,24 @@
     <input type="hidden" id="ratingInput" value="0" />
 
     <div class="collection-toggle">
+      <input type="checkbox" id="confidenceInput" />
+      <label>Flag as uncertain <span class="hint">(needs verification)</span></label>
+    </div>
+
+    <div class="collection-toggle">
       <input type="checkbox" id="isCollectionInput" />
       <label>This is a collection of stories</label>
     </div>
     <div id="storySection">
       <div id="storyRows"></div>
       <button type="button" class="btn ghost small" id="addStoryBtn" style="display:none; margin-top:2px;">+ Add story</button>
+
+      <div id="bulkStoryArea" style="display:none; margin-top:10px;">
+        <label>Paste a list of stories <span class="hint">(one per line, e.g. "Title — Author")</span></label>
+        <textarea id="bulkStoryInput" placeholder="Evensong — Lester del Rey&#10;Flies — Robert Silverberg" rows="4"></textarea>
+        <button type="button" class="btn ghost small" id="parseBulkStoryBtn" style="margin-top:6px;">Add these stories</button>
+      </div>
+      <button type="button" class="btn ghost small" id="toggleBulkStoryBtn" style="display:none; margin-top:6px;">Paste a list instead</button>
     </div>
 
     <label>Synopsis</label>
@@ -578,9 +616,12 @@ function setSyncIndicator(state, label){
 function toDbRow(b){
   return {
     id: b.id, isbn: b.isbn || null, title: b.title, author: b.author || null,
-    publisher: b.publisher || null, year: b.year || null, pages: b.pages || null,
+    publisher: b.publisher || null, year: b.year || null, edition_year: b.editionYear || null,
+    pages: b.pages || null, category: b.category || null,
     format: b.format, status: b.status, ownership: b.ownership,
     loan_source: b.loanSource || null, due_date: b.dueDate || null,
+    date_read: b.dateRead || null, series_name: b.seriesName || null, series_number: b.seriesNumber || null,
+    location: b.location || null, confidence: b.uncertain ? 'Uncertain' : null,
     rating: b.rating || 0, is_collection: !!b.isCollection, stories: b.stories || [],
     synopsis: b.synopsis || null, notes: b.notes || null,
     date_added: b.dateAdded || new Date().toISOString(),
@@ -590,9 +631,12 @@ function toDbRow(b){
 function fromDbRow(r){
   return {
     id: r.id, isbn: r.isbn || '', title: r.title, author: r.author || '',
-    publisher: r.publisher || '', year: r.year || '', pages: r.pages || null,
+    publisher: r.publisher || '', year: r.year || '', editionYear: r.edition_year || '',
+    pages: r.pages || null, category: r.category || '',
     format: r.format, status: r.status, ownership: r.ownership,
     loanSource: r.loan_source || '', dueDate: r.due_date || '',
+    dateRead: r.date_read || '', seriesName: r.series_name || '', seriesNumber: r.series_number || '',
+    location: r.location || '', uncertain: (r.confidence || '').toLowerCase() === 'uncertain',
     rating: r.rating || 0, isCollection: !!r.is_collection, stories: r.stories || [],
     synopsis: r.synopsis || '', notes: r.notes || '',
     dateAdded: r.date_added, _dirty: false
@@ -667,6 +711,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('statusFilter').onchange = render;
   document.getElementById('formatFilter').onchange = render;
   document.getElementById('sourceFilter').onchange = render;
+  document.getElementById('categoryFilter').onchange = render;
   document.getElementById('btnShelf').onclick = ()=> setView('shelf');
   document.getElementById('btnList').onclick = ()=> setView('list');
 
@@ -676,9 +721,23 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('isCollectionInput').onchange = (e)=>{
     document.getElementById('storySection').classList.toggle('show', e.target.checked);
     document.getElementById('addStoryBtn').style.display = e.target.checked ? 'inline-block' : 'none';
+    document.getElementById('toggleBulkStoryBtn').style.display = e.target.checked ? 'inline-block' : 'none';
+    if(!e.target.checked) document.getElementById('bulkStoryArea').style.display = 'none';
     if(e.target.checked && document.getElementById('storyRows').children.length===0) addStoryRow();
   };
   document.getElementById('addStoryBtn').onclick = ()=> addStoryRow();
+  document.getElementById('toggleBulkStoryBtn').onclick = ()=>{
+    const area = document.getElementById('bulkStoryArea');
+    area.style.display = area.style.display === 'none' ? 'block' : 'none';
+  };
+  document.getElementById('parseBulkStoryBtn').onclick = ()=>{
+    const text = document.getElementById('bulkStoryInput').value;
+    const parsed = parseStoryLines(text);
+    if(!parsed.length) return;
+    parsed.forEach(s=> addStoryRow(s.title, s.author));
+    document.getElementById('bulkStoryInput').value = '';
+    document.getElementById('bulkStoryArea').style.display = 'none';
+  };
   document.querySelectorAll('#starPick button').forEach(btn=>{
     btn.onclick = ()=>{
       const cur = parseInt(document.getElementById('ratingInput').value||'0');
@@ -771,19 +830,30 @@ function filteredBooks(){
   const sf = document.getElementById('statusFilter').value;
   const ff = document.getElementById('formatFilter').value;
   const rf = document.getElementById('sourceFilter').value;
+  const cf = document.getElementById('categoryFilter').value;
   return books.filter(b=>{
     if(sf && b.status !== sf) return false;
     if(ff && b.format !== ff) return false;
     if(rf && sourceLabel(b) !== rf) return false;
+    if(cf && (b.category||'') !== cf) return false;
     if(q){
-      const hay = `${b.title} ${b.author} ${b.isbn||''} ${b.publisher||''}`.toLowerCase();
+      const hay = `${b.title} ${b.author} ${b.isbn||''} ${b.publisher||''} ${b.category||''} ${b.seriesName||''}`.toLowerCase();
       if(!hay.includes(q)) return false;
     }
     return true;
   });
 }
 
+function refreshCategoryFilter(){
+  const sel = document.getElementById('categoryFilter');
+  const cur = sel.value;
+  const cats = [...new Set(books.map(b=>b.category).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">all categories</option>' + cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  sel.value = cur;
+}
+
 function render(){
+  refreshCategoryFilter();
   const list = filteredBooks();
   document.getElementById('countLabel').textContent = `${books.length} volume${books.length===1?'':'s'}`;
   const area = document.getElementById('mainArea');
@@ -829,15 +899,18 @@ function render(){
       c.className = 'book-card';
       c.onclick = ()=> openSheet(b.id);
       const metaBits = [b.publisher, b.year, b.pages ? `${b.pages}p` : ''].filter(Boolean).join(' · ');
+      const seriesBit = b.seriesName ? `${b.seriesName}${b.seriesNumber ? ' #'+b.seriesNumber : ''}` : '';
       c.innerHTML = `
-        <h3>${escapeHtml(b.title)}</h3>
+        <h3>${escapeHtml(b.title)}${b.uncertain ? ' <span title="Flagged as uncertain" style="color:var(--burgundy);">?</span>' : ''}</h3>
         <div class="auth">${escapeHtml(b.author||'Unknown author')}</div>
         ${metaBits ? `<div class="meta">${escapeHtml(metaBits)}</div>` : ''}
+        ${seriesBit ? `<div class="meta">${escapeHtml(seriesBit)}</div>` : ''}
         ${b.rating ? `<div class="stars">${'★'.repeat(b.rating)}${'☆'.repeat(5-b.rating)}</div>` : ''}
         <div class="pillrow">
           <span class="pill"><span class="status-swatch" style="background:${STATUS_COLOR[b.status]}"></span>${STATUS_LABEL[b.status]}</span>
           <span class="pill">${FORMAT_LABEL[b.format]||b.format}</span>
           <span class="pill">${escapeHtml(sourceLabel(b))}</span>
+          ${b.category ? `<span class="pill">${escapeHtml(b.category)}</span>` : ''}
           ${b.isCollection ? `<span class="pill">${(b.stories||[]).length} stories</span>` : ''}
         </div>`;
       grid.appendChild(c);
@@ -852,6 +925,18 @@ function formatDateShort(iso){ if(!iso) return ''; const d = new Date(iso+'T00:0
 function paintStars(val){ document.querySelectorAll('#starPick button').forEach(b=> b.classList.toggle('on', parseInt(b.dataset.val) <= val)); }
 
 /* ---------- Story rows (collections) ---------- */
+function parseStoryLines(text){
+  if(!text) return [];
+  return text.split('\n').map(line=>line.trim()).filter(Boolean).map(line=>{
+    // Split on em dash, en dash, or hyphen surrounded by spaces — "Title — Author (notes)"
+    const m = line.split(/\s+—\s+|\s+–\s+|\s+-\s+/);
+    if(m.length >= 2){
+      return { title: m[0].trim(), author: m.slice(1).join(' - ').trim() };
+    }
+    return { title: line, author: '' };
+  }).filter(s=>s.title);
+}
+
 function addStoryRow(title='', author=''){
   const row = document.createElement('div');
   row.className = 'story-row';
@@ -879,9 +964,16 @@ function openSheet(id){
   document.getElementById('authorInput').value = b?.author || '';
   document.getElementById('publisherInput').value = b?.publisher || '';
   document.getElementById('yearInput').value = b?.year || '';
+  document.getElementById('editionYearInput').value = b?.editionYear || '';
   document.getElementById('pagesInput').value = b?.pages || '';
+  document.getElementById('categoryInput').value = b?.category || '';
   document.getElementById('formatInput').value = b?.format || 'paperback';
   document.getElementById('statusInput').value = b?.status || 'queue';
+  document.getElementById('dateReadInput').value = b?.dateRead || '';
+  document.getElementById('seriesNameInput').value = b?.seriesName || '';
+  document.getElementById('seriesNumberInput').value = b?.seriesNumber || '';
+  document.getElementById('locationFieldInput').value = b?.location || '';
+  document.getElementById('confidenceInput').checked = !!b?.uncertain;
   document.getElementById('synopsisInput').value = b?.synopsis || '';
   document.getElementById('notesInput').value = b?.notes || '';
   document.getElementById('dueInput').value = b?.dueDate || '';
@@ -898,6 +990,8 @@ function openSheet(id){
   document.getElementById('isCollectionInput').checked = !!b?.isCollection;
   document.getElementById('storySection').classList.toggle('show', !!b?.isCollection);
   document.getElementById('addStoryBtn').style.display = b?.isCollection ? 'inline-block' : 'none';
+  document.getElementById('toggleBulkStoryBtn').style.display = b?.isCollection ? 'inline-block' : 'none';
+  document.getElementById('bulkStoryArea').style.display = 'none';
   document.getElementById('storyRows').innerHTML = '';
   if(b?.isCollection && b.stories && b.stories.length){
     b.stories.forEach(s=> addStoryRow(s.title, s.author));
@@ -925,9 +1019,16 @@ async function saveBook(){
     author: document.getElementById('authorInput').value.trim(),
     publisher: document.getElementById('publisherInput').value.trim(),
     year: document.getElementById('yearInput').value.trim(),
+    editionYear: document.getElementById('editionYearInput').value.trim(),
     pages: document.getElementById('pagesInput').value ? parseInt(document.getElementById('pagesInput').value) : null,
+    category: document.getElementById('categoryInput').value.trim(),
     format: document.getElementById('formatInput').value,
     status: document.getElementById('statusInput').value,
+    dateRead: document.getElementById('dateReadInput').value,
+    seriesName: document.getElementById('seriesNameInput').value.trim(),
+    seriesNumber: document.getElementById('seriesNumberInput').value.trim(),
+    location: document.getElementById('locationFieldInput').value.trim(),
+    uncertain: document.getElementById('confidenceInput').checked,
     ownership,
     loanSource: ownership==='loan' ? document.getElementById('loanSourceInput').value : '',
     dueDate: ownership==='loan' ? document.getElementById('dueInput').value : '',
@@ -1022,28 +1123,36 @@ function stopScanner(){
 /* ---------- CSV Export ---------- */
 function storiesToText(stories){
   if(!stories || !stories.length) return '';
-  return stories.map(s => s.author ? `${s.title} by ${s.author}` : s.title).join(' ; ');
+  return stories.map(s => s.author ? `${s.title} — ${s.author}` : s.title).join('\n');
 }
 
 function exportCsv(){
   if(!books.length){ alert('Your shelf is empty — nothing to export yet.'); return; }
   const rows = books.map(b => ({
     'Title': b.title || '',
-    'Author': b.author || '',
+    'Author / Editor': b.author || '',
     'Publisher': b.publisher || '',
-    'Year': b.year || '',
+    'Original Year': b.year || '',
+    'Edition Year': b.editionYear || '',
     'Pages': b.pages || '',
     'Format': FORMAT_LABEL[b.format] || b.format || '',
+    'Category': b.category || '',
     'Status': STATUS_LABEL[b.status] || b.status || '',
+    'Read?': b.status === 'read' ? 'TRUE' : 'FALSE',
+    'Date Read': b.dateRead || '',
+    'Rating (1-5)': b.rating || 0,
+    'Series Name': b.seriesName || '',
+    'Series #': b.seriesNumber || '',
     'Ownership': b.ownership === 'loan' ? 'On Loan' : 'Owned',
     'Loan Source': b.ownership === 'loan' ? (b.loanSource || '') : '',
     'Due Date': b.ownership === 'loan' ? (b.dueDate || '') : '',
-    'Rating': b.rating || '',
+    'Location / Shelf': b.location || '',
+    'Has Contents': b.isCollection ? 'Yes' : 'No',
+    'Contents': storiesToText(b.stories),
     'ISBN': b.isbn || '',
-    'Is Collection': b.isCollection ? 'Yes' : 'No',
-    'Stories': storiesToText(b.stories),
     'Synopsis': b.synopsis || '',
     'Notes': b.notes || '',
+    'Confidence': b.uncertain ? 'Uncertain' : '',
     'Date Added': b.dateAdded ? b.dateAdded.slice(0,10) : ''
   }));
   const csv = Papa.unparse(rows);
@@ -1062,14 +1171,23 @@ function exportCsv(){
 /* ---------- CSV Import ---------- */
 const APP_FIELDS = [
   {key:'title', label:'Title', aliases:['title','book title','name']},
-  {key:'author', label:'Author', aliases:['author','authors','author name']},
+  {key:'author', label:'Author / Editor', aliases:['author / editor','author','authors','author name']},
   {key:'isbn', label:'ISBN', aliases:['isbn13','isbn','isbn-13']},
   {key:'publisher', label:'Publisher', aliases:['publisher']},
-  {key:'year', label:'Year', aliases:['original publication year','year published','year','publication year']},
+  {key:'year', label:'Original Year', aliases:['original year','original publication year','year published','year','publication year']},
+  {key:'editionYear', label:'Edition Year', aliases:['edition year']},
   {key:'pages', label:'Pages', aliases:['number of pages','pages','page count']},
+  {key:'category', label:'Category / Genre', aliases:['category','genre']},
   {key:'format', label:'Format', aliases:['binding','format']},
-  {key:'status', label:'Status', aliases:['exclusive shelf','shelf','status','read status']},
-  {key:'rating', label:'Rating', aliases:['my rating','rating']},
+  {key:'status', label:'Status', aliases:['exclusive shelf','shelf','status','read status','read?']},
+  {key:'dateRead', label:'Date Read', aliases:['date read']},
+  {key:'rating', label:'Rating', aliases:['my rating','rating (1-5)','rating']},
+  {key:'seriesName', label:'Series Name', aliases:['series name','series']},
+  {key:'seriesNumber', label:'Series #', aliases:['series #','series number','series num']},
+  {key:'location', label:'Location / Shelf', aliases:['location / shelf','location','shelf']},
+  {key:'hasContents', label:'Has Contents', aliases:['has contents']},
+  {key:'contents', label:'Contents (stories, one per line)', aliases:['contents']},
+  {key:'confidence', label:'Confidence', aliases:['confidence']},
   {key:'synopsis', label:'Synopsis', aliases:['synopsis','description']},
   {key:'notes', label:'Notes', aliases:['my review','notes','review']},
   {key:'bookshelves', label:'Bookshelves (for source detection)', aliases:['bookshelves','shelves']},
@@ -1157,7 +1275,9 @@ function normalizeFormat(raw){
 }
 function normalizeStatus(raw){
   if(!raw) return 'queue';
-  const s = raw.toLowerCase();
+  const s = raw.toLowerCase().trim();
+  if(s === 'true') return 'read';
+  if(s === 'false') return 'queue';
   if(s.includes('to-read') || s.includes('to read') || s.includes('want') || s.includes('wishlist')) return 'queue';
   if(s.includes('current') || s.includes('reading')) return 'reading';
   if(s.includes('dnf') || s.includes('did not finish') || s.includes('abandon')) return 'dnf';
@@ -1185,6 +1305,9 @@ async function runImport(){
   const newBooks = csvRows.map(row=>{
     const get = k => map[k] ? (row[map[k]]||'').trim() : '';
     const src = detectSource(get('bookshelves'));
+    const hasContentsRaw = get('hasContents').toLowerCase();
+    const contentsText = get('contents');
+    const isCollection = hasContentsRaw === 'yes' || hasContentsRaw === 'true' || (!map.hasContents && !!contentsText);
     return {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2,8),
       isbn: get('isbn').replace(/[^0-9Xx]/g,''),
@@ -1192,15 +1315,22 @@ async function runImport(){
       author: get('author'),
       publisher: get('publisher'),
       year: (get('year').match(/\d{4}/)||[''])[0],
+      editionYear: (get('editionYear').match(/\d{4}/)||[''])[0],
       pages: get('pages') ? parseInt(get('pages')) || null : null,
+      category: get('category'),
       format: normalizeFormat(get('format')),
       status: normalizeStatus(get('status')),
+      dateRead: get('dateRead'),
+      seriesName: get('seriesName'),
+      seriesNumber: get('seriesNumber'),
+      location: get('location'),
+      uncertain: get('confidence').toLowerCase().includes('uncertain'),
       ownership: src.ownership,
       loanSource: src.loanSource,
       dueDate: '',
       rating: normalizeRating(get('rating')),
-      isCollection: false,
-      stories: [],
+      isCollection,
+      stories: isCollection ? parseStoryLines(contentsText) : [],
       synopsis: get('synopsis'),
       notes: get('notes'),
       dateAdded: new Date().toISOString()
