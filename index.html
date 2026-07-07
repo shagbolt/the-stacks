@@ -1333,7 +1333,8 @@ async function runImport(){
       stories: isCollection ? parseStoryLines(contentsText) : [],
       synopsis: get('synopsis'),
       notes: get('notes'),
-      dateAdded: new Date().toISOString()
+      dateAdded: new Date().toISOString(),
+      _dirty: true
     };
   }).filter(b=> b.title);
 
@@ -1342,6 +1343,18 @@ async function runImport(){
   document.getElementById('importedCount').textContent = newBooks.length;
   showImportStep(3);
   render();
+
+  if(supabaseClient){
+    setSyncIndicator('syncing', 'Syncing…');
+    let pushed = 0;
+    for(const b of newBooks){
+      const ok = await pushBookToCloud(b);
+      if(ok){ b._dirty = false; await dbPut(b); pushed++; }
+    }
+    setSyncIndicator(pushed === newBooks.length ? 'on' : 'err', `Synced · ${books.length} books`);
+  } else {
+    setSyncIndicator('', 'Local only');
+  }
 }
 </script>
 </body>
