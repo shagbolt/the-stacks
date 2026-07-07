@@ -609,6 +609,15 @@
       <button class="btn ghost" id="backupNowBtn" style="margin-top:10px;">Back Up Now</button>
     </fieldset>
 
+    <fieldset style="margin-top:22px;">
+      <legend>Maintenance</legend>
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:4px 0 10px;">
+        For books still sitting at "To Read" from before status defaults were added: sets owned books to "In Library" and loaned books to "Reading." Leaves anything already marked Read, On Hold, or Did Not Finish alone.
+      </p>
+      <button class="btn ghost" id="fixStatusBtn">Apply Status Defaults</button>
+      <div class="lookup-status" id="fixStatusStatus"></div>
+    </fieldset>
+
     <fieldset style="margin-top:22px; border-color:var(--burgundy);">
       <legend style="color:var(--burgundy);">Danger Zone</legend>
       <p style="font-size:12.5px; color:var(--ink-soft); margin:4px 0 10px;">
@@ -1039,6 +1048,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   };
   document.getElementById('closeSettings').onclick = ()=> document.getElementById('settingsOverlay').classList.remove('open');
   document.getElementById('deleteAllBtn').onclick = deleteAllBooks;
+  document.getElementById('fixStatusBtn').onclick = applyStatusDefaults;
   document.getElementById('backupNowBtn').onclick = exportCsv;
   document.getElementById('backupIntervalInput').onchange = (e)=>{
     setBackupIntervalDays(parseInt(e.target.value));
@@ -1521,6 +1531,31 @@ async function deleteAllBooks(){
   } else {
     document.getElementById('deleteAllStatus').textContent = `Deleted all ${count} books from this device.`;
   }
+}
+
+async function applyStatusDefaults(){
+  const statusEl = document.getElementById('fixStatusStatus');
+  // Only touch books still sitting at the old "queue" default — never books already marked
+  // Reading, Read, On Hold, or Did Not Finish, since those reflect a deliberate choice.
+  const toFix = books.filter(b => b.status === 'queue');
+  if(toFix.length === 0){
+    statusEl.textContent = 'Nothing to update — no books are set to "To Read."';
+    return;
+  }
+  statusEl.textContent = `Updating ${toFix.length} books…`;
+  let changed = 0;
+  for(const b of toFix){
+    b.status = b.ownership === 'owned' ? 'library' : 'reading';
+    b._dirty = true;
+    await dbPut(b);
+    changed++;
+    if(supabaseClient){
+      const ok = await pushBookToCloud(b);
+      if(ok){ b._dirty = false; await dbPut(b); }
+    }
+  }
+  render();
+  statusEl.textContent = `Updated ${changed} books.`;
 }
 
 /* ---------- ISBN Lookup ---------- */
