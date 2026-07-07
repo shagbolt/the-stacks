@@ -421,6 +421,9 @@
     <label>Author / Editor</label>
     <input type="text" id="authorInput" placeholder="Author, or Editor Name (ed.)" />
 
+    <button type="button" class="btn ghost small" id="lookupByTitleBtn" style="margin-top:6px;">Fill in details from title</button>
+    <div class="lookup-status" id="titleLookupStatus"></div>
+
     <div class="row3">
       <div><label>Publisher</label><input type="text" id="publisherInput" placeholder="Publisher" /></div>
       <div><label>Original Year</label><input type="text" id="yearInput" placeholder="1979" inputmode="numeric" /></div>
@@ -992,6 +995,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('deleteBtn').onclick = removeBook;
   document.getElementById('lookupBtn').onclick = doLookup;
   document.getElementById('findCoverBtn').onclick = findCoverByTitleAuthor;
+  document.getElementById('lookupByTitleBtn').onclick = lookupByTitle;
   document.getElementById('coverUrlInput').oninput = updateCoverPreview;
   document.getElementById('scanBtn').onclick = toggleScanner;
   document.getElementById('searchInput').oninput = render;
@@ -1613,6 +1617,39 @@ async function findCoverByTitleAuthor(){
     document.getElementById('lookupStatus').textContent = `Found a cover via "${item.volumeInfo.title}".`;
   }catch(e){
     document.getElementById('lookupStatus').textContent = 'Cover search failed — check connection.';
+  }
+}
+
+async function lookupByTitle(){
+  const statusEl = document.getElementById('titleLookupStatus');
+  const title = document.getElementById('titleInput').value.trim();
+  const authorTyped = document.getElementById('authorInput').value.trim();
+  if(!title){ statusEl.textContent = 'Enter a title first.'; return; }
+  statusEl.textContent = 'Looking up…';
+  try{
+    let q = `intitle:${title}`;
+    if(authorTyped) q += `+inauthor:${authorTyped.split('(')[0].trim()}`;
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=5`);
+    const data = await res.json();
+    const item = data.items && data.items[0];
+    if(!item){ statusEl.textContent = 'No match found for that title — try adding an author, or enter details manually.'; return; }
+    const v = item.volumeInfo;
+    if(v.title) document.getElementById('titleInput').value = v.title;
+    if(v.authors) document.getElementById('authorInput').value = v.authors.join(', ');
+    if(v.publisher) document.getElementById('publisherInput').value = v.publisher;
+    if(v.publishedDate) document.getElementById('yearInput').value = v.publishedDate.slice(0,4);
+    if(v.pageCount) document.getElementById('pagesInput').value = v.pageCount;
+    if(v.description) document.getElementById('synopsisInput').value = v.description;
+    setCoverFromGoogleImageLinks(v.imageLinks);
+    if(!document.getElementById('isbnInput').value.trim() && v.industryIdentifiers){
+      const isbn13 = v.industryIdentifiers.find(x => x.type === 'ISBN_13');
+      const isbn10 = v.industryIdentifiers.find(x => x.type === 'ISBN_10');
+      const found = isbn13 || isbn10;
+      if(found) document.getElementById('isbnInput').value = found.identifier;
+    }
+    statusEl.textContent = `Filled in from: "${v.title}"${v.authors ? ' by ' + v.authors.join(', ') : ''}. Double-check it's the right edition.`;
+  }catch(e){
+    statusEl.textContent = 'Lookup failed — check connection or enter details manually.';
   }
 }
 
