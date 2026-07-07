@@ -596,6 +596,17 @@
     </div>
 
     <fieldset style="margin-top:22px;">
+      <legend>Book Lookup</legend>
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:4px 0 10px;">
+        ISBN, title, and cover lookups use the Google Books API. Without a key it's limited to a small anonymous quota that can run out quickly — a free key removes that limit. See the steps below.
+      </p>
+      <label>Google Books API key <span class="hint">(optional, but recommended)</span></label>
+      <input type="text" id="googleBooksKeyInput" placeholder="AIzaSy..." />
+      <div class="lookup-status" id="googleBooksKeyStatus"></div>
+      <button class="btn ghost" id="saveGoogleBooksKeyBtn" style="margin-top:8px;">Save Key</button>
+    </fieldset>
+
+    <fieldset style="margin-top:22px;">
       <legend>Backups</legend>
       <p style="font-size:12.5px; color:var(--ink-soft); margin:4px 0 10px;">
         Downloads a dated CSV of your full catalog — a copy independent of the app itself, in case anything ever goes wrong with the device or the cloud.
@@ -748,6 +759,15 @@ const STATUS_LABEL = {read:'Read', reading:'Reading', queue:'To Read', library:'
 const STATUS_COLOR = {read:'#3E5D46', reading:'#45607A', queue:'#B9AE8C', library:'#5C8A82', hold:'#D9AD63', dnf:'#8A6E6E'};
 const FORMAT_LABEL = {hardcover:'Hardcover', paperback:'Paperback', trade_paperback:'Trade Paperback', epub:'Ebook · EPUB', mobi:'Ebook · MOBI', pdf:'Ebook · PDF', audiobook:'Audiobook'};
 const EBOOK_FORMATS = ['epub','mobi','pdf'];
+
+/* ---------- Google Books lookup ---------- */
+const GOOGLE_BOOKS_KEY_STORAGE = 'stacks_google_books_key';
+function getGoogleBooksKey(){ return localStorage.getItem(GOOGLE_BOOKS_KEY_STORAGE) || ''; }
+function saveGoogleBooksKey(key){ localStorage.setItem(GOOGLE_BOOKS_KEY_STORAGE, key); }
+function googleBooksUrl(query, extraParams=''){
+  const key = getGoogleBooksKey();
+  return `https://www.googleapis.com/books/v1/volumes?q=${query}${extraParams}${key ? '&key=' + encodeURIComponent(key) : ''}`;
+}
 
 /* ---------- Supabase sync ---------- */
 const SB_CONFIG_KEY = 'stacks_supabase_config';
@@ -1048,12 +1068,17 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('settingsBtn').onclick = ()=>{
     document.getElementById('settingsOverlay').classList.add('open');
     document.getElementById('backupIntervalInput').value = String(getBackupIntervalDays());
+    document.getElementById('googleBooksKeyInput').value = getGoogleBooksKey();
     refreshBackupUI();
   };
   document.getElementById('closeSettings').onclick = ()=> document.getElementById('settingsOverlay').classList.remove('open');
   document.getElementById('deleteAllBtn').onclick = deleteAllBooks;
   document.getElementById('fixStatusBtn').onclick = applyStatusDefaults;
   document.getElementById('backupNowBtn').onclick = exportCsv;
+  document.getElementById('saveGoogleBooksKeyBtn').onclick = ()=>{
+    saveGoogleBooksKey(document.getElementById('googleBooksKeyInput').value.trim());
+    document.getElementById('googleBooksKeyStatus').textContent = 'Saved. Lookups will use this key from now on.';
+  };
   document.getElementById('backupIntervalInput').onchange = (e)=>{
     setBackupIntervalDays(parseInt(e.target.value));
     checkBackupReminder();
@@ -1568,7 +1593,15 @@ async function doLookup(){
   if(!isbn){ document.getElementById('lookupStatus').textContent = 'Enter an ISBN first.'; return; }
   document.getElementById('lookupStatus').textContent = 'Looking up…';
   try{
-    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    const res = await fetch(googleBooksUrl(`isbn:${isbn}`));
+    if(res.status === 403 || res.status === 429){
+      document.getElementById('lookupStatus').textContent = 'Google Books lookup quota reached — add a free API key in Sync settings to fix this.';
+      return;
+    }
+    if(!res.ok){
+      document.getElementById('lookupStatus').textContent = `Lookup failed (error ${res.status}) — try again shortly.`;
+      return;
+    }
     const data = await res.json();
     const item = data.items && data.items[0];
     if(!item){ document.getElementById('lookupStatus').textContent = 'No match found — enter details manually.'; return; }
@@ -1582,7 +1615,7 @@ async function doLookup(){
     setCoverFromGoogleImageLinks(v.imageLinks);
     document.getElementById('lookupStatus').textContent = `Found: ${v.title}`;
   }catch(e){
-    document.getElementById('lookupStatus').textContent = 'Lookup failed — check connection or enter manually.';
+    document.getElementById('lookupStatus').textContent = 'Lookup failed — check your internet connection or enter manually.';
   }
 }
 
@@ -1609,14 +1642,22 @@ async function findCoverByTitleAuthor(){
   try{
     let q = `intitle:${title}`;
     if(author) q += `+inauthor:${author.split('(')[0].trim()}`;
-    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}`);
+    const res = await fetch(googleBooksUrl(encodeURIComponent(q)));
+    if(res.status === 403 || res.status === 429){
+      document.getElementById('lookupStatus').textContent = 'Google Books lookup quota reached — add a free API key in Sync settings to fix this.';
+      return;
+    }
+    if(!res.ok){
+      document.getElementById('lookupStatus').textContent = `Cover search failed (error ${res.status}) — try again shortly.`;
+      return;
+    }
     const data = await res.json();
     const item = data.items && data.items.find(i => i.volumeInfo.imageLinks) ;
     if(!item){ document.getElementById('lookupStatus').textContent = 'No cover found for that title/author.'; return; }
     setCoverFromGoogleImageLinks(item.volumeInfo.imageLinks);
     document.getElementById('lookupStatus').textContent = `Found a cover via "${item.volumeInfo.title}".`;
   }catch(e){
-    document.getElementById('lookupStatus').textContent = 'Cover search failed — check connection.';
+    document.getElementById('lookupStatus').textContent = 'Cover search failed — check your internet connection.';
   }
 }
 
@@ -1629,7 +1670,15 @@ async function lookupByTitle(){
   try{
     let q = `intitle:${title}`;
     if(authorTyped) q += `+inauthor:${authorTyped.split('(')[0].trim()}`;
-    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=5`);
+    const res = await fetch(googleBooksUrl(encodeURIComponent(q), '&maxResults=5'));
+    if(res.status === 403 || res.status === 429){
+      statusEl.textContent = 'Google Books lookup quota reached — add a free API key in Sync settings to fix this.';
+      return;
+    }
+    if(!res.ok){
+      statusEl.textContent = `Lookup failed (error ${res.status}) — try again shortly.`;
+      return;
+    }
     const data = await res.json();
     const item = data.items && data.items[0];
     if(!item){ statusEl.textContent = 'No match found for that title — try adding an author, or enter details manually.'; return; }
@@ -1649,7 +1698,7 @@ async function lookupByTitle(){
     }
     statusEl.textContent = `Filled in from: "${v.title}"${v.authors ? ' by ' + v.authors.join(', ') : ''}. Double-check it's the right edition.`;
   }catch(e){
-    statusEl.textContent = 'Lookup failed — check connection or enter details manually.';
+    statusEl.textContent = 'Lookup failed — check your internet connection or enter details manually.';
   }
 }
 
